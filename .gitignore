@@ -27,4 +27,6 @@ ompiled Object files
 *.out
 *.app
 
+build/
+cmake/
 
