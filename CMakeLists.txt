@@ -24,5 +24,8 @@ endif()
 # Look up SDL2 and add the include directory to our include path
 find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIR})
+find_package(SDL2IMAGE REQUIRED)
+include_directories(${SDL2IMAGE_INCLUDE_DIR})
+
 
 add_subdirectory(GetTheFlag)

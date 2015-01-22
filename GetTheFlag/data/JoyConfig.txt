@@ -1,0 +1,70 @@
+JoyStick names:
+PC TWIN SHOCK 
+USB Joystick     
+USB Gamepad
+PS3/USB Corded Gamepad
+
+Config:
+PC TWIN SHOCK
+0 move_x_axis 
+1 move_y_axis 
+2 look_x_axis 
+3 look_y_axis  
+7 shoot_button
+6 bomb_button 
+9 change_button 
+0 MenuUp
+0 MenuDown   
+1 MenuRight 
+1 MenuLeft  
+0 MenuOk 
+4 MenuBack 
+5 Pause 
+
+USB Joystick     
+0 move_x_axis
+1 move_y_axis
+3 look_x_axis
+2 look_y_axis
+7 shoot_button 
+6 bomb_button 
+5 change_button 
+0 MenuUp 
+0 MenuDown   
+1 MenuRight 
+1 MenuLeft  
+2 MenuOk 
+3 MenuBack 
+9 Pause 
+
+PS3/USB Corded Gamepad
+0 move_x_axis
+1 move_y_axis
+2 look_x_axis
+3 look_y_axis
+5 shoot_button 
+4 bomb_button 
+7 change_button 
+0 MenuUp 
+0 MenuDown   
+1 MenuRight 
+1 MenuLeft  
+2 MenuOk 
+3 MenuBack 
+9 Pause
+
+USB Gamepad
+0 move_x_axis
+1 move_y_axis
+2 look_x_axis
+3 look_y_axis
+5 shoot_button 
+4 bomb_button 
+7 change_button 
+0 MenuUp 
+0 MenuDown   
+1 MenuRight 
+1 MenuLeft  
+2 MenuOk 
+3 MenuBack 
+9 Pause
