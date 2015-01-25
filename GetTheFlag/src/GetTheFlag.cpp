@@ -1,44 +1,38 @@
 #include <iostream>
-#include <cassert>
 
 #include <SDL.h>
 #include <SDL_image.h>
 
+#include "GetTheFlag.h"
 #include "Input.h"
-#define ASSERT assert
+#include "Level.h"
 
-typedef char int8;
-typedef unsigned char uint8;
-typedef short int16;
-typedef unsigned short uint16;
-typedef int int32;
-typedef unsigned int uint32 ;
-typedef long int64 ;
-typedef unsigned long uint64;
+//#define RENDER_DEBUG
+
+struct Player {
+    Vec2 position;
+    Vec2 velocity;
+    Vec2 accel;
+    Vec2 aimDir;
+    real32 size;
+    SDL_Surface* bitmaps[3];
+};
+
+#define MAX_BULLET_COUNT 50
+
+struct Bullet {
+    Vec2 position;
+    Vec2 velocity;
+};
+
 
 struct Game {
     bool running;
+    Player player;
+    Level level;
 };
 
-struct Player {
-    int32 x;
-    int32 y;
-    int32 dx;
-    int32 dy;
-    
-    SDL_Surface* bitmap;
-};
-
-enum TILE_TYPE {
-    BLANK = 0,
-    WALL,
-    MACHINE_GUN,
-    SHOTGUN,
-    GRENADE,
-    HEART
-};
-
-
+// TODO: Free memory
 SDL_Surface* loadBitmap(const char* filename)
 {
     SDL_RWops *rwop;
@@ -47,185 +41,341 @@ SDL_Surface* loadBitmap(const char* filename)
     {
         printf("SDL_RWFromFile: %s\n", IMG_GetError());
         
+        ASSERT(false);
     }
     SDL_Surface* bitmap = IMG_LoadPNG_RW(rwop);
+    if(!bitmap)
+    {
+        printf("IMG_LoadPNG_RW: %s\n", IMG_GetError());
+        printf("Error loading: %s\n", filename);
+        
+        ASSERT(false);
+    }
     return bitmap;
 }
 
-struct Level {
-    uint8* tiles;
-    uint32 width;
-    uint32 height;
-};
-
-inline uint8 levelValueAt(Level* level, uint32 x, uint32 y){
-    return level->tiles[x+y*level->width];
-}
-
-bool loadLevel(Level* level)
+uint32 createBullet(uint32& bulletCount)
 {
-    SDL_Surface* levelBitmap = loadBitmap("lvl1.png");
-    if (levelBitmap)
-    {
-        uint32 LEVEL_WIDTH = levelBitmap->w;
-        uint32 LEVEL_HEIGHT = levelBitmap->h;
-        uint8* tiles = new uint8[LEVEL_WIDTH*LEVEL_WIDTH];
-        memset(tiles, 0, LEVEL_HEIGHT*LEVEL_WIDTH*sizeof(uint8));
-        for (uint32 j = 0; j < LEVEL_HEIGHT; j++)
-        {
-            for (uint32 i = 0; i < LEVEL_WIDTH; i++)
-            {
-                if(i==j)
-                {
-                    tiles[i+j*LEVEL_WIDTH] = TILE_TYPE::WALL;
-                }
-            }
-        }
-        level->tiles = tiles;
-        level->width = LEVEL_WIDTH;
-        level->height = LEVEL_HEIGHT;
-        
-        return true;
-    }
-    else
-    {
-        printf("loadBitmap: %s\n", IMG_GetError());
-        return false;
-    }
+    ASSERT(bulletCount < MAX_BULLET_COUNT - 1);
+    return bulletCount++;
 }
+
+void releaseBullet(Bullet* bullets, uint32& bulletCount,uint32 bulletIndex)
+{
+    bullets[bulletIndex] = bullets[--bulletCount];
+}
+
+inline uint32 levelUnitToPixel(real32 pixerPerUnit, real32 c)
+{
+    return roundReal32toInt32(c*pixerPerUnit);
+}
+
+
+// TODO: Fixed framerate
+// TODO: Multiple Monitor
+// TODO: Understand how flip and blit works with monitor refresh sync
+// TODO: Understand the renderer thing
+// TODO: Improve the timer (fixed dt)
+// TODO: Make assert that prints a message
+// TODO: Rotate sprites
+// TODO: Collision Line/Rect?
+// TODO: Fix collision bug at the lower right corner of the level
+
 
 int main()
 {
     
 	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) == 0)
     {
-        SDL_Window* window = SDL_CreateWindow("Get The Flag", 0, 0, 640, 480, SDL_WINDOW_OPENGL);
-        SDL_Renderer* renderer = 0;
+        uint32 ScreenWidth = 640;
+        uint32 ScreenHeight = 480;
+        
+        SDL_Window* window = SDL_CreateWindow("Get The Flag", 0, 0, ScreenWidth, ScreenHeight, 0);
         SDL_Surface* window_surface = 0;
+        int32 monitorRefreshRate = 60;
+        int32 gameRefreshRate = monitorRefreshRate;
+        real32 targetMsPerFrame = 1000.0f / gameRefreshRate;
         
         if(window)
         {
             window_surface = SDL_GetWindowSurface(window);
             ASSERT(window_surface);
-            
-            // Create dummy image
-            uint32 width = 5;
-            uint32 height = 5;
+           
+            Level level;
+            if(!loadLevel(&level))
+            {
+                printf("loadLevel: %s\n", IMG_GetError());
+                ASSERT(false);
+            }
+            level.pixelPerUnit = ((real32)ScreenWidth)/((real32)level.width);
             
             Player player;
-            int32 vel = 10;
-            player.x = 0;
-            player.y = 0;
-            player.dx = 0;
-            player.dy = 0;
+            // acceleration and drag in m/s;
+            real32 drag = 20.0f;
+            real32 acc = 200.0f;
+            player.position = Vec2(5,10);
+            player.velocity = Vec2(0,0);
+            player.aimDir = Vec2(1,0);
+            player.size = 3.0f;
             
-            SDL_Rect playerRect = { 0, 0, (int32)width, (int32)height};
+            // Load player bitmap
+            player.bitmaps[0] = loadBitmap("data/player1_right_standing.png");
+            player.bitmaps[1] = loadBitmap("data/player1_right_walking_1.png");
+            player.bitmaps[2] = loadBitmap("data/player1_right_walking_2.png");
+            Vec2 playerSize(0.4*player.size, player.size);
             
-        
-            SDL_Surface* playerBitmap = loadBitmap("data/player1_right_feet_left_gun_right.png");
-            if(!playerBitmap)
-            {
-                printf("loadBitmap: %s\n", IMG_GetError());
-            }
+            
+            // Load background bitmap
             SDL_Surface* backgroundBitmap = loadBitmap("data/bg.png");
             if(!backgroundBitmap)
             {
                 printf("loadBitmap: %s\n", IMG_GetError());
             }
-            SDL_Surface* wallBitmap = loadBitmap("data/brick.png");
-            if(!wallBitmap)
+            
+            // Load Level element bitmaps
+            SDL_Surface* gameEntitySurfaces[MAX_ENTITY_TYPE];
+            const char* gameEntityImageFilename[MAX_ENTITY_TYPE];
+            gameEntityImageFilename[TILE_TYPE::WALL] = "data/brick.png";
+            gameEntityImageFilename[TILE_TYPE::SHOTGUN] = "data/shotgun.png";
+            gameEntityImageFilename[TILE_TYPE::MACHINE_GUN] = "data/machine_gun.png";
+            gameEntityImageFilename[TILE_TYPE::HEART] = "data/heart_full.png";
+            gameEntityImageFilename[TILE_TYPE::BOMB] = "data/bomb.png";
+            // Load all the images of the tile sprites
+            for (uint32 i = 0; i < TILE_TYPE::MAX_ENTITY_TYPE; i++)
             {
-                printf("loadBitmap: %s\n", IMG_GetError());
+                gameEntitySurfaces[i] = loadBitmap(gameEntityImageFilename[i]);
             }
+            
+            // Load Other bitmaps
+            SDL_Surface* bulletBitmap = loadBitmap("data/bullet.png");
+            
+            // Pool for bullets
+            Bullet bullets[MAX_BULLET_COUNT];
+            uint32 bulletCount = 0;
+            real32 bulletSpeed = 30.0f;
+            Vec2 bulletSize(bulletBitmap->w/level.pixelPerUnit,
+                            bulletBitmap->h/level.pixelPerUnit);
             
             Input input;
             memset(&input, 0, sizeof(input));
             
-            
-            Level level;
-            if(!loadLevel(&level))
-            {
-                printf("loadLevel: %s\n", IMG_GetError());
-            }
+            // Timers
+            uint64 lastCounter = SDL_GetPerformanceCounter();
+            uint64 endCounter = 0;
+            uint64 counterFrequency = SDL_GetPerformanceFrequency();
             
             bool running = true;
+            
             // The main Loop
             while (running)
             {
-                processInput(&input);
                 
-                if(input.quitKeyDown)
+                // Time delta in seconds
+                real32 dt = targetMsPerFrame/1000.0f;
+                
+                processInput(&input);
+                if(input.keyStates[QUIT].clicked
+                   || input.keyStates[ESCAPE].clicked)
                 {
                     running = false;
                 }
                 
-                player.dx = 0;
-                player.dy = 0;
-                if (input.upKeyDown)
-                {
-                    player.dy = -vel;
-                }
-                if (input.downKeyDown)
-                {
-                    player.dy = vel;
-                }
-                if (input.leftKeyDown)
-                {
-                    player.dx = -vel;
-                }
-                if (input.rightKeyDown)
-                {
-                    player.dx = vel;
-                }
                 
-                // Update
-                player.x += player.dx;
-                player.y += player.dy;
-                
-                // Draw
-                SDL_RenderClear(renderer);
-                // clear the window surface
-                SDL_FillRect(window_surface, 0, 0);
-                
-                // Background
-                SDL_BlitSurface(backgroundBitmap,0,window_surface,0);
-            
-                // World elements
-                for (uint32 j = 0; j < level.height; j++)
-                {
-                    for (uint32 i = 0; i < level.width; i++)
+                { // Player Update
+                    // Fire
+                    if(input.keyStates[FIRE1].clicked)
                     {
-                        if(levelValueAt(&level,i,j) == TILE_TYPE::WALL)
+                        uint32 bulletIndex = createBullet(bulletCount);
+                        bullets[bulletIndex].position = player.position;
+                        bullets[bulletIndex].velocity = player.aimDir;
+                    }
+                    
+                    player.accel = Vec2(0,0);
+                    if (input.keyStates[UP].held)
+                    {
+                        player.accel.y = -1.0f;
+                    }
+                    if (input.keyStates[DOWN].held)
+                    {
+                        player.accel.y = 1.0f;
+                    }
+                    if (input.keyStates[LEFT].held)
+                    {
+                        player.accel.x = -1.0f;
+                    }
+                    if (input.keyStates[RIGHT].held)
+                    {
+                        player.accel.x = 1.0f;
+                    }
+                    if(abs(player.accel.x) > 0.0f || abs(player.accel.y) > 0.0f)
+                    {
+                        Vec2 n = normalize(player.accel);
+                        ASSERT(!(n.x!=n.x));
+                        player.aimDir = player.accel;
+                    }
+                    Vec2 acceleration = acc*player.accel - drag*player.velocity;
+                    player.velocity += acceleration * dt;
+                    Vec2 newPos =  player.position + player.velocity * dt;
+                    
+                    // Resolve collisions
+                    // Stay inside the Level
+                    newPos = max(newPos,Vec2(0,0));
+                    newPos = min(newPos,Vec2(level.width,level.height));
+                    player.position = newPos;
+                    
+                    Rect playerRec = {
+                        newPos - 0.5f*playerSize,
+                        newPos + 0.5F*playerSize
+                    };
+                    
+                    Vec2 penetration;
+                    if ( levelRectCollides(&level, playerRec, penetration) )
+                    {
+                        player.position -= penetration;
+                    }
+                }
+                
+                { // Update Bullets
+                    // Move the bullet forward
+                    real32 levelWidth = (real32)level.width;
+                    real32 levelHeight = (real32)level.height;
+                    Rect bulletRect;
+                    
+                    for (uint32 i = 0; i < bulletCount; i++)
+                    {
+                        bullets[i].position += (bulletSpeed * dt) * bullets[i].velocity;
+                        
+                        bulletRect.min = bullets[i].position - 0.5f*bulletSize;
+                        bulletRect.max = bullets[i].position + 0.5f*bulletSize;
+                        
+                        if (isOutsideLevel(levelWidth, levelHeight, bullets[i].position)
+                            || levelRectCollides(&level, bulletRect))
                         {
-                            int w = wallBitmap->w;
-                            int h = wallBitmap->h;
-                            SDL_Rect rect {(int)(i*w),(int)(j*h),w,h};
-                            SDL_BlitSurface(wallBitmap,0,window_surface,&rect);
+                            releaseBullet(bullets, bulletCount, i);
                         }
                     }
                 }
                 
-                // Player
-                playerRect.x = player.x;
-                playerRect.y = player.y;
-                SDL_BlitSurface(playerBitmap,0,window_surface,&playerRect);
+                //Animate
+                SDL_Surface* playerBitmap;
+                if(player.velocity.x > 0 || player.velocity.y > 0)
+                {
+                    playerBitmap = player.bitmaps[1];
+                }
+                else
+                {
+                    playerBitmap = player.bitmaps[0];
+                }
+                
+                // Draw
+                {
+                    // clear the window surface
+                    SDL_FillRect(window_surface, 0, 0);
+                    
+                    // Background
+                    SDL_BlitSurface(backgroundBitmap,0,window_surface,0);
+                
+                    real32 pixPerUnit = level.pixelPerUnit;
+                    
+                    // World elements
+                    for (uint32 j = 0; j < level.height; j++)
+                    {
+                        for (uint32 i = 0; i < level.width; i++)
+                        {
+                            uint8 value = levelValueAtTile(&level,i,j);
+                            if(value < TILE_TYPE::MAX_ENTITY_TYPE)
+                            {
+                                SDL_Rect rect;
+                                rect.x = i*level.pixelPerUnit;
+                                rect.y = j*level.pixelPerUnit;
+                                rect.w = level.pixelPerUnit;
+                                rect.h = level.pixelPerUnit;
+                                SDL_BlitScaled(gameEntitySurfaces[value],0,window_surface,&rect);
+                            }
+                        }
+                    }
+                    
+                    // Bullets
+                    SDL_Rect bulletRect;
+                    bulletRect.w = levelUnitToPixel(pixPerUnit, bulletSize.x);
+                    bulletRect.h = levelUnitToPixel(pixPerUnit, bulletSize.y);
+                    for (uint32 i = 0; i < bulletCount; i++)
+                    {
+                        bulletRect.x = levelUnitToPixel(pixPerUnit, bullets[i].position.x - 0.5f*bulletSize.x);
+                        bulletRect.y = levelUnitToPixel(pixPerUnit, bullets[i].position.y - 0.5f*bulletSize.y);
+                        SDL_BlitSurface(bulletBitmap,0,window_surface,&bulletRect);
+                    }
+                    
+                    // Player
+                    SDL_Rect playerRect;
+                    playerRect.w = levelUnitToPixel(pixPerUnit, player.size);
+                    playerRect.h = levelUnitToPixel(pixPerUnit, player.size);
+                    playerRect.x = levelUnitToPixel(pixPerUnit, player.position.x-0.5f*player.size);
+                    playerRect.y = levelUnitToPixel(pixPerUnit, player.position.y-0.5f*player.size);
+                    
+                    SDL_BlitScaled(playerBitmap,0,window_surface,&playerRect);
+                }
+      
+#ifdef RENDER_DEBUG
+                {
+                    static SDL_Surface* debugSurface = 0;
+                    if(!debugSurface)
+                    {
+                        debugSurface = SDL_CreateRGBSurface(0, 64, 64, 32,0,0,0,0);
+                        memset(debugSurface->pixels, 255, sizeof(uint32)*64*64);
+                    }
+                    
+                    // Collision rect
+                    real32 pixPerUnit = level.pixelPerUnit;
+                    SDL_Rect debugPlayerRect;
+                    debugPlayerRect.w = levelUnitToPixel(pixPerUnit, playerSize.x);
+                    debugPlayerRect.h = levelUnitToPixel(pixPerUnit, playerSize.y);
+                    debugPlayerRect.x = levelUnitToPixel(pixPerUnit, player.position.x - 0.5f*playerSize.x);
+                    debugPlayerRect.y = levelUnitToPixel(pixPerUnit, player.position.y - 0.5f*playerSize.y);
+
+                    SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
+                }
+                
+#endif
                 
                 // swap
                 SDL_UpdateWindowSurface(window);
+                
+                // Update the clock
+                endCounter = SDL_GetPerformanceCounter();
+                
+                uint64 couterElapsed = endCounter - lastCounter;
+                real32 msElapsed = ((1000.0f * (real32)couterElapsed)/(real32)counterFrequency);
+                
+                if(msElapsed < targetMsPerFrame)
+                {
+                    SDL_Delay((uint32)targetMsPerFrame-msElapsed);
+                    lastCounter = endCounter;
+                    endCounter = SDL_GetPerformanceCounter();
+                    couterElapsed = endCounter - lastCounter;
+                    msElapsed  +=((1000.0f * (real32)couterElapsed)/(real32)counterFrequency);
+                }
+                else
+                {
+                    // TODO: LOG
+                    std::cout << "LOOONNNGG FRAAAAMMMME!!" << std::endl;
+                }
+                
+                //int32 fps = 1000/msElapsed;
+                //printf("%f ms, %d fps %d\n",msElapsed,fps,bulletCount);
+                lastCounter = endCounter;
             }
-            
-            SDL_FreeSurface(playerBitmap);
-            SDL_DestroyRenderer(renderer);
+            // Cleanup
             SDL_DestroyWindow(window);
         }
         else
         {
-            //TODO: LOG
+            // TODO: LOG
         }
 	}
     else
     {
-        //TODO: LOG
+        // TODO: LOG
     }
 	
 	SDL_Quit();
