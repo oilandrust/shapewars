@@ -84,7 +84,7 @@ bool levelRectCollides(Level* level, const Rect& a, Vec2& penetration)
                         penetration.y = a.max.y - b.min.y;
                     }
                     
-                    if (abs(penetration.y) > abs(penetration.x))
+                    if(abs(penetration.y) > abs(penetration.x))
                     {
                         penetration.y = 0;
                     }

@@ -7,7 +7,7 @@
 #include "Input.h"
 #include "Level.h"
 
-//#define RENDER_DEBUG
+#define RENDER_DEBUG
 
 struct Player {
     Vec2 position;
@@ -122,7 +122,7 @@ int main()
             player.bitmaps[0] = loadBitmap("data/player1_right_standing.png");
             player.bitmaps[1] = loadBitmap("data/player1_right_walking_1.png");
             player.bitmaps[2] = loadBitmap("data/player1_right_walking_2.png");
-            Vec2 playerSize(0.4*player.size, player.size);
+            Vec2 playerSize(0.4*player.size, 0.4*player.size);
             
             
             // Load background bitmap
