@@ -1,10 +1,30 @@
 #ifndef GETTHEFLAGH
 #define GETTHEFLAGH
 
-#include <cassert>
 #include <cmath>
+#include <cstdlib>
+#include <iostream>
+#include <cassert>
+#include <csignal>
 
-#define ASSERT assert
+#ifdef _MSC_VER
+    #define DEBUG_BREAK __debugbreak()
+#else
+    #define DEBUG_BREAK raise(SIGTRAP)
+#endif
+
+#ifndef NDEBUG
+    #   define ASSERT(condition, message) \
+    do { \
+        if (! (condition)) { \
+            std::cerr << "Assertion `" #condition "` failed in " << __FILE__ \
+            << " line " << __LINE__ << ": " << message << std::endl; \
+            DEBUG_BREAK; \
+        } \
+    } while (false)
+#else
+    #   define ASSERT(condition, message) do { } while (false)
+#endif
 
 typedef char int8;
 typedef unsigned char uint8;

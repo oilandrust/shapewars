@@ -69,7 +69,7 @@ inline real32 length(const Vec2& v)
 
 inline Vec2 normalize(const Vec2& v)
 {
-    ASSERT(dot(v, v) > 0);
+    ASSERT(dot(v, v) > 0,"Normalize zero vector!");
     real32 linv = 1.0f/length(v);
     return Vec2(v.x*linv,v.y*linv);
 }

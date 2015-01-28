@@ -1,13 +1,17 @@
-#include <iostream>
+#include <cstdio>
 
 #include <SDL.h>
 #include <SDL_image.h>
+#include <GL/glew.h>
+#include <SDL_opengl.h>
 
 #include "GetTheFlag.h"
 #include "Input.h"
 #include "Level.h"
+#include "OpenGLClient.h"
 
-#define RENDER_DEBUG
+//#define RENDER_DEBUG
+#define RENDER_GL
 
 struct Player {
     Vec2 position;
@@ -25,12 +29,16 @@ struct Bullet {
     Vec2 velocity;
 };
 
+uint32 createBullet(uint32& bulletCount)
+{
+    ASSERT(bulletCount < MAX_BULLET_COUNT - 1, "Too many bullets");
+    return bulletCount++;
+}
 
-struct Game {
-    bool running;
-    Player player;
-    Level level;
-};
+void releaseBullet(Bullet* bullets, uint32& bulletCount,uint32 bulletIndex)
+{
+    bullets[bulletIndex] = bullets[--bulletCount];
+}
 
 // TODO: Free memory
 SDL_Surface* loadBitmap(const char* filename)
@@ -40,58 +48,43 @@ SDL_Surface* loadBitmap(const char* filename)
     if(!rwop)
     {
         printf("SDL_RWFromFile: %s\n", IMG_GetError());
-        
-        ASSERT(false);
+        ASSERT(false, IMG_GetError());
     }
     SDL_Surface* bitmap = IMG_LoadPNG_RW(rwop);
     if(!bitmap)
     {
         printf("IMG_LoadPNG_RW: %s\n", IMG_GetError());
         printf("Error loading: %s\n", filename);
-        
-        ASSERT(false);
+        ASSERT(false, IMG_GetError());
     }
     return bitmap;
 }
 
-uint32 createBullet(uint32& bulletCount)
-{
-    ASSERT(bulletCount < MAX_BULLET_COUNT - 1);
-    return bulletCount++;
-}
-
-void releaseBullet(Bullet* bullets, uint32& bulletCount,uint32 bulletIndex)
-{
-    bullets[bulletIndex] = bullets[--bulletCount];
-}
 
 inline uint32 levelUnitToPixel(real32 pixerPerUnit, real32 c)
 {
     return roundReal32toInt32(c*pixerPerUnit);
 }
 
-struct Screen {
-    
-};
 
-// TODO: Fixed framerate
+// TODO: Shader level 140
 // TODO: Multiple Monitor
 // TODO: Understand how flip and blit works with monitor refresh sync
 // TODO: Improve the timer (fixed dt)
-// TODO: Make assert that prints a message
 // TODO: Rotate sprites
-// TODO: Fix collision bug at the lower right corner of the level
-
+// TODO: Create shader, VBuffer
 
 int main()
 {
     
-	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO) == 0)
+	if (SDL_Init(SDL_INIT_EVERYTHING) == 0)
     {
         uint32 ScreenWidth = 640;
         uint32 ScreenHeight = 480;
         
-        SDL_Window* window = SDL_CreateWindow("Get The Flag", 0, 0, ScreenWidth, ScreenHeight, 0);
+        
+        
+        SDL_Window* window = SDL_CreateWindow("Get The Flag", 0, 0, ScreenWidth, ScreenHeight, SDL_WINDOW_OPENGL);
         SDL_Surface* window_surface = 0;
         
         int32 monitorRefreshRate = 30;
@@ -101,13 +94,59 @@ int main()
         if(window)
         {
             window_surface = SDL_GetWindowSurface(window);
-            ASSERT(window_surface);
+            ASSERT(window_surface, SDL_GetError());
+            
+            // Initialze OpenGL 3.1
+            SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+            SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 3 );
+            SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 1 );
            
+            //Create context
+            SDL_GLContext glContext = SDL_GL_CreateContext(window);
+            ASSERT(!glGetError(), "Error Creating Contex");
+            ASSERT(glContext, "OpenGL context could not be created! SDL Error: %s\n" + std::string(SDL_GetError()));
+            
+            //Initialize GLEW
+            glewExperimental = GL_TRUE;
+            GLenum result = glewInit();
+            ASSERT(result == GLEW_OK, "Error initializing GLEW!" + std::string((const char*)glewGetErrorString(result)));
+            // TODO: glewInit() created a GL_INVALID_ENUM
+            //ASSERT(!glGetError(), "Error Initializing GLEW");
+            
+            //Use Vsync
+            if( SDL_GL_SetSwapInterval( 1 ) < 0 )
+            {
+                printf( "Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
+            }
+            
+            // Initialize the rendering resources
+            Shader spriteShader;
+            bool success = createShaderProgram(&spriteShader,"shaders/sprite.vs","shaders/sprite.fs");
+            ASSERT(success, "Loading shader failed");
+            spriteShader.projLoc = glGetUniformLocation(spriteShader.progId, "projection");
+            spriteShader.posLoc = glGetUniformLocation(spriteShader.progId, "entity_position");
+            spriteShader.sizeLoc = glGetUniformLocation(spriteShader.progId, "entity_size");
+            
+            Mesh spriteMesh;
+            Vec2 rectVertices[6];
+            uint32 rectIndices[6] = {0,1,2,0,2,3};
+            rectVertices[0] = Vec2(-.5f,-.5f);
+            rectVertices[1] = Vec2(-.5f,.5f);
+            rectVertices[2] = Vec2(.5f,.5f);
+            rectVertices[3] = Vec2(-.5f,-.5f);
+            rectVertices[4] = Vec2(.5f,.5f);
+            rectVertices[5] = Vec2(.5f,-.5f);
+            
+            spriteMesh.positions = rectVertices;
+            spriteMesh.indices = rectIndices;
+            createVertexAndIndexBuffer(&spriteMesh);
+            
+            // Load The Level
             Level level;
             if(!loadLevel(&level,"data/lvl2.bmp"))
             {
                 printf("loadLevel: %s\n", IMG_GetError());
-                ASSERT(false);
+                ASSERT(false, IMG_GetError());
             }
             level.pixelPerUnit = ((real32)ScreenWidth)/((real32)level.width);
             
@@ -167,7 +206,6 @@ int main()
             uint64 counterFrequency = SDL_GetPerformanceFrequency();
             
             bool running = true;
-            
             // The main Loop
             while (running)
             {
@@ -211,8 +249,6 @@ int main()
                     }
                     if(abs(player.accel.x) > 0.0f || abs(player.accel.y) > 0.0f)
                     {
-                        Vec2 n = normalize(player.accel);
-                        ASSERT(!(n.x!=n.x));
                         player.aimDir = player.accel;
                     }
                     Vec2 acceleration = acc*player.accel - drag*player.velocity;
@@ -271,7 +307,7 @@ int main()
                     }
                 }
                 
-                 
+                
                 { // Update Bullets
                     // Move the bullet forward
                     real32 levelWidth = (real32)level.width;
@@ -303,7 +339,8 @@ int main()
                 {
                     playerBitmap = player.bitmaps[0];
                 }
-                
+ 
+#ifndef RENDER_GL
                 // Draw
                 {
                     // clear the window surface
@@ -382,7 +419,7 @@ int main()
                                 debugPlayerRect.x = levelUnitToPixel(pixPerUnit, i);
                                 debugPlayerRect.y = levelUnitToPixel(pixPerUnit, j);
                                 
-                      //          SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
+                                SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
                             }
                         }
                     }
@@ -395,41 +432,63 @@ int main()
                     debugPlayerRect.x = levelUnitToPixel(pixPerUnit, player.position.x - 0.5f*playerSize.x);
                     debugPlayerRect.y = levelUnitToPixel(pixPerUnit, level.height - player.position.y - 0.5f*playerSize.y);
 
-                    //SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
-                    
-                    // Find the zone containing the rect
-                    uint32 minTX = (uint32)5;
-                    uint32 maxTX = (uint32)10+1;
-                    uint32 mintTY = (uint32)(level.height - 10);
-                    uint32 maxTY = (uint32)(level.height - 5)+1;
-                    
-                    Rect wallRect = {
-                        Vec2(0,0),
-                        Vec2(1,1)
-                    };
-                    
-                    for (uint32 j = mintTY; j < maxTY; j++)
-                    {
-                        for (uint32 i = minTX; i < maxTX; i++)
-                        {
-                            wallRect.min = levelGridToWorld(&level, i, j);
-                            wallRect.max = levelGridToWorld(&level, i+1, j+1 );
-                            
-                            SDL_Rect debugPlayerRect;
-                            debugPlayerRect.w = levelUnitToPixel(pixPerUnit, 1);
-                            debugPlayerRect.h = levelUnitToPixel(pixPerUnit, 1);
-                            debugPlayerRect.x = levelUnitToPixel(pixPerUnit, i);
-                            debugPlayerRect.y = levelUnitToPixel(pixPerUnit, j);
-                            
-                            //SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
-                        }
-                    }
+                    SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
                 }
                 
 #endif
                 
                 // swap
                 SDL_UpdateWindowSurface(window);
+#endif
+                
+#ifdef RENDER_GL
+                
+                glClearColor(0.f, 0.f, 0.f, 1.f);
+                glClear(GL_COLOR_BUFFER_BIT);
+                
+                glUseProgram(spriteShader.progId);
+                
+                real32 mat[16];
+                ortho(mat, 0, level.width, 0, level.height, -1, 1);
+                glUniformMatrix4fv(spriteShader.projLoc, 1, true, mat);
+                
+                glBindBuffer(GL_ARRAY_BUFFER, spriteMesh.vboId);
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+                
+                // Walls
+                glUniform2f(spriteShader.sizeLoc,1,1);
+                for (uint32 j = 0; j < level.height; j++)
+                {
+                    for (uint32 i = 0; i < level.width; i++)
+                    {
+                        uint8 value = levelValueAtTile(&level,i,j);
+                        if(value == WALL)
+                        {
+                            glUniform2f(spriteShader.posLoc, i+0.5f ,j+0.5f);
+                            glDrawArrays(GL_TRIANGLES, 0, 6);
+                        }
+                    }
+                }
+                
+                // Bullets
+                glUniform2fv(spriteShader.sizeLoc, 1, &bulletSize.x);
+                for (uint32 i = 0; i < bulletCount; i++)
+                {
+                    glUniform2fv(spriteShader.posLoc, 1, &bullets[i].position.x);
+                    glDrawArrays(GL_TRIANGLES, 0, 6);
+                }
+                
+                // Player
+                glUniform2fv(spriteShader.sizeLoc, 1, &playerSize.x);
+                glUniform2fv(spriteShader.posLoc, 1, &player.position.x);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+                
+                glDisableVertexAttribArray(0);
+                glUseProgram(0);
+                
+                SDL_GL_SwapWindow(window);
+#endif
                 
                 // Update the clock
                 endCounter = SDL_GetPerformanceCounter();

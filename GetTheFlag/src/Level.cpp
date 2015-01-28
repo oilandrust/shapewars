@@ -108,7 +108,7 @@ bool levelRectCollides(Level* level,
     
     if(collides)
     {
-        ASSERT(!(tMin!=tMin));
+        ASSERT(!(tMin!=tMin), "NAN in slab collision, fx or fy is inf");
         collisionPoint = position + tMin * d;
         
         // Compute the normal
@@ -133,7 +133,7 @@ bool levelRectCollides(Level* level,
         }
         else
         {
-            ASSERT(0);
+            ASSERT(0,"Not Robust");
         }
         
         return true;
@@ -154,11 +154,11 @@ bool loadLevel(Level* level, const char* filename)
         uint8* tiles = new uint8[LEVEL_WIDTH*LEVEL_WIDTH];
         memset(tiles, 0, LEVEL_HEIGHT*LEVEL_WIDTH*sizeof(uint8));
         
-        ASSERT(levelBitmap->format->BytesPerPixel == 4);
-        ASSERT(levelBitmap->format->Amask == 0x000000ff);
-        ASSERT(levelBitmap->format->Rmask == 0xff000000);
-        ASSERT(levelBitmap->format->Gmask == 0x00ff0000);
-        ASSERT(levelBitmap->format->Bmask == 0x0000ff00);
+        ASSERT(levelBitmap->format->BytesPerPixel == 4, "Wrong pixel format");
+        ASSERT(levelBitmap->format->Amask == 0x000000ff, "Wrong pixel format");
+        ASSERT(levelBitmap->format->Rmask == 0xff000000, "Wrong pixel format");
+        ASSERT(levelBitmap->format->Gmask == 0x00ff0000, "Wrong pixel format");
+        ASSERT(levelBitmap->format->Bmask == 0x0000ff00, "Wrong pixel format");
         uint32* pixels = (uint32*)levelBitmap->pixels;
         
         for (uint32 j = 0; j < LEVEL_HEIGHT; j++)

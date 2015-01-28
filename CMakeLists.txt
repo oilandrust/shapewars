@@ -26,6 +26,13 @@ find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIR})
 find_package(SDL2IMAGE REQUIRED)
 include_directories(${SDL2IMAGE_INCLUDE_DIR})
+find_package(GLEW REQUIRED)
+include_directories(${GLEW_INCLUDE_DIR})
+find_package(OpenGL REQUIRED)
+include_directories(${OPENGL_INCLUDE_DIR})
 
+MESSAGE( STATUS "SDL2_INCLUDE_DIR:         " ${SDL2_INCLUDE_DIR} )
+MESSAGE( STATUS "OPENGL_INCLUDE_DIR:         " ${OPENGL_INCLUDE_DIR} )
 
 add_subdirectory(GetTheFlag)
+add_subdirectory(Sandbox)
