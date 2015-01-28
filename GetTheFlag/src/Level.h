@@ -13,6 +13,8 @@ enum TILE_TYPE {
     MAX_ENTITY_TYPE
 };
 
+
+
 struct Level {
     uint8* tiles;
     uint32 width;
@@ -28,18 +30,23 @@ inline uint8 levelValueAtTile(Level* level, uint32 x, uint32 y)
 inline uint8 levelValueAt(Level* level, const Vec2& pos)
 {
     uint32 tileX = (uint32)pos.x;
-    uint32 tileY = (uint32)pos.y;
+    uint32 tileY = (uint32)(level->height - pos.y);
     return levelValueAtTile(level, tileX, tileY);
+}
+
+inline Vec2 levelGridToWorld(Level* level, uint32 i, uint32 j)
+{
+    return Vec2(i, level->height-j);
+}
+
+inline Vec2 levelToWorld(Level* level, real32 i, real32 j)
+{
+    return Vec2(i, level->height-j);
 }
 
 inline bool isOutsideLevel(real32 w, real32 h, const Vec2& v)
 {
     return v.x < 0 || v.y < 0 || v.x > w || v.y > h;
-}
-
-inline uint32 worldXToTileX(real32 x)
-{
-    
 }
 
 struct Rect {
@@ -53,12 +60,11 @@ inline bool rectCollidesRect(const Rect& a, const Rect& b)
     && (max(a.min.y, b.min.y) < min(a.max.y, b.max.y));
 }
 
-bool levelRectCollides(Level* level, const Rect& rect);
+extern bool levelRectCollides(Level* level, const Rect& rect);
 
-bool levelRectCollides(Level* level, const Rect& a, Vec2& penetration);
-
+bool levelRectCollides(Level* level, const Vec2& size, const Vec2& position, const Vec2& velocity, const real32 dt, Vec2& collisionPoint, Vec2& normal );
 
 // TODO: Free tiles memory
-bool loadLevel(Level* level);
+bool loadLevel(Level* level, const char* filename);
 
 #endif

@@ -70,15 +70,16 @@ inline uint32 levelUnitToPixel(real32 pixerPerUnit, real32 c)
     return roundReal32toInt32(c*pixerPerUnit);
 }
 
+struct Screen {
+    
+};
 
 // TODO: Fixed framerate
 // TODO: Multiple Monitor
 // TODO: Understand how flip and blit works with monitor refresh sync
-// TODO: Understand the renderer thing
 // TODO: Improve the timer (fixed dt)
 // TODO: Make assert that prints a message
 // TODO: Rotate sprites
-// TODO: Collision Line/Rect?
 // TODO: Fix collision bug at the lower right corner of the level
 
 
@@ -92,7 +93,8 @@ int main()
         
         SDL_Window* window = SDL_CreateWindow("Get The Flag", 0, 0, ScreenWidth, ScreenHeight, 0);
         SDL_Surface* window_surface = 0;
-        int32 monitorRefreshRate = 60;
+        
+        int32 monitorRefreshRate = 30;
         int32 gameRefreshRate = monitorRefreshRate;
         real32 targetMsPerFrame = 1000.0f / gameRefreshRate;
         
@@ -102,7 +104,7 @@ int main()
             ASSERT(window_surface);
            
             Level level;
-            if(!loadLevel(&level))
+            if(!loadLevel(&level,"data/lvl2.bmp"))
             {
                 printf("loadLevel: %s\n", IMG_GetError());
                 ASSERT(false);
@@ -113,7 +115,7 @@ int main()
             // acceleration and drag in m/s;
             real32 drag = 20.0f;
             real32 acc = 200.0f;
-            player.position = Vec2(5,10);
+            player.position = Vec2(3,3);
             player.velocity = Vec2(0,0);
             player.aimDir = Vec2(1,0);
             player.size = 3.0f;
@@ -122,7 +124,7 @@ int main()
             player.bitmaps[0] = loadBitmap("data/player1_right_standing.png");
             player.bitmaps[1] = loadBitmap("data/player1_right_walking_1.png");
             player.bitmaps[2] = loadBitmap("data/player1_right_walking_2.png");
-            Vec2 playerSize(0.4*player.size, 0.4*player.size);
+            Vec2 playerSize(0.4*player.size, player.size);
             
             
             // Load background bitmap
@@ -193,11 +195,11 @@ int main()
                     player.accel = Vec2(0,0);
                     if (input.keyStates[UP].held)
                     {
-                        player.accel.y = -1.0f;
+                        player.accel.y = 1.0f;
                     }
                     if (input.keyStates[DOWN].held)
                     {
-                        player.accel.y = 1.0f;
+                        player.accel.y = -1.0f;
                     }
                     if (input.keyStates[LEFT].held)
                     {
@@ -215,26 +217,61 @@ int main()
                     }
                     Vec2 acceleration = acc*player.accel - drag*player.velocity;
                     player.velocity += acceleration * dt;
-                    Vec2 newPos =  player.position + player.velocity * dt;
                     
-                    // Resolve collisions
-                    // Stay inside the Level
-                    newPos = max(newPos,Vec2(0,0));
-                    newPos = min(newPos,Vec2(level.width,level.height));
-                    player.position = newPos;
-                    
-                    Rect playerRec = {
-                        newPos - 0.5f*playerSize,
-                        newPos + 0.5F*playerSize
-                    };
-                    
-                    Vec2 penetration;
-                    if ( levelRectCollides(&level, playerRec, penetration) )
+                    if( abs(player.velocity.x) > 0.0f || abs(player.velocity.y) > 0.0f)
                     {
-                        player.position -= penetration;
+                        Vec2 newPos = player.position + player.velocity * dt;;
+                        
+                        // Resolve collisions
+                        Vec2 collisionPoint;
+                        Vec2 normal;
+                        if( levelRectCollides(&level,
+                                              playerSize, player.position, player.velocity, dt,
+                                              collisionPoint,normal ) )
+                        {
+                            // if we collide, we run the remaining distance along the wall
+                            real32 dtr;
+                            do
+                            {
+                                Vec2 dispInside = newPos - collisionPoint;
+                                Vec2 dispCorrected = dispInside-dot(normal,dispInside)*normal;
+                                
+                                if(length(dispCorrected) > 0)
+                                {
+                                    real32 oldVelocity = length(player.velocity);
+                                    dtr = dt - length(player.position - collisionPoint)*oldVelocity;
+                                    player.velocity = oldVelocity * normalize(dispCorrected);
+                                    player.position = collisionPoint + dispCorrected;
+                                }
+                                else
+                                {
+                                    player.position = collisionPoint;
+                                    break;
+                                }
+                            }
+                            while(dtr > 0 && levelRectCollides(&level,
+                                                               playerSize, player.position, player.velocity, dtr,
+                                                               collisionPoint,normal ));
+                            
+                            if(levelRectCollides(&level,
+                                                 playerSize, player.position, player.velocity, dt,
+                                                 collisionPoint,normal ))
+                            {
+                                player.position = collisionPoint;
+                            }
+                        }
+                        else
+                        {
+                            player.position = newPos;
+                        }
+                        
+                        // Stay inside the Level
+                        player.position = max(player.position,0.5f*playerSize);
+                        player.position = min(player.position,Vec2(level.width,level.height)-0.5f*playerSize);
                     }
                 }
                 
+                 
                 { // Update Bullets
                     // Move the bullet forward
                     real32 levelWidth = (real32)level.width;
@@ -286,8 +323,8 @@ int main()
                             if(value < TILE_TYPE::MAX_ENTITY_TYPE)
                             {
                                 SDL_Rect rect;
-                                rect.x = i*level.pixelPerUnit;
-                                rect.y = j*level.pixelPerUnit;
+                                rect.x = i * level.pixelPerUnit;
+                                rect.y = j * level.pixelPerUnit;
                                 rect.w = level.pixelPerUnit;
                                 rect.h = level.pixelPerUnit;
                                 SDL_BlitScaled(gameEntitySurfaces[value],0,window_surface,&rect);
@@ -302,7 +339,7 @@ int main()
                     for (uint32 i = 0; i < bulletCount; i++)
                     {
                         bulletRect.x = levelUnitToPixel(pixPerUnit, bullets[i].position.x - 0.5f*bulletSize.x);
-                        bulletRect.y = levelUnitToPixel(pixPerUnit, bullets[i].position.y - 0.5f*bulletSize.y);
+                        bulletRect.y = levelUnitToPixel(pixPerUnit,  level.height-bullets[i].position.y - 0.5f*bulletSize.y);
                         SDL_BlitSurface(bulletBitmap,0,window_surface,&bulletRect);
                     }
                     
@@ -311,7 +348,7 @@ int main()
                     playerRect.w = levelUnitToPixel(pixPerUnit, player.size);
                     playerRect.h = levelUnitToPixel(pixPerUnit, player.size);
                     playerRect.x = levelUnitToPixel(pixPerUnit, player.position.x-0.5f*player.size);
-                    playerRect.y = levelUnitToPixel(pixPerUnit, player.position.y-0.5f*player.size);
+                    playerRect.y = levelUnitToPixel(pixPerUnit, level.height-player.position.y-0.5f*player.size);
                     
                     SDL_BlitScaled(playerBitmap,0,window_surface,&playerRect);
                 }
@@ -324,6 +361,31 @@ int main()
                         debugSurface = SDL_CreateRGBSurface(0, 64, 64, 32,0,0,0,0);
                         memset(debugSurface->pixels, 255, sizeof(uint32)*64*64);
                     }
+                    static SDL_Surface* redSurface = 0;
+                    if(!redSurface)
+                    {
+                        redSurface = SDL_CreateRGBSurface(0, 64, 64, 32,0,0,0,0);
+                        memset(redSurface->pixels, 255<<16, sizeof(uint32)*64*64);
+                    }
+                    
+                    for (uint32 j = 0; j < level.height; j++)
+                    {
+                        for (uint32 i = 0; i < level.width; i++)
+                        {
+                            uint8 value = levelValueAtTile(&level,i,j);
+                            if(value == WALL)
+                            {
+                                real32 pixPerUnit = level.pixelPerUnit;
+                                SDL_Rect debugPlayerRect;
+                                debugPlayerRect.w = levelUnitToPixel(pixPerUnit, 1);
+                                debugPlayerRect.h = levelUnitToPixel(pixPerUnit, 1);
+                                debugPlayerRect.x = levelUnitToPixel(pixPerUnit, i);
+                                debugPlayerRect.y = levelUnitToPixel(pixPerUnit, j);
+                                
+                      //          SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
+                            }
+                        }
+                    }
                     
                     // Collision rect
                     real32 pixPerUnit = level.pixelPerUnit;
@@ -331,9 +393,37 @@ int main()
                     debugPlayerRect.w = levelUnitToPixel(pixPerUnit, playerSize.x);
                     debugPlayerRect.h = levelUnitToPixel(pixPerUnit, playerSize.y);
                     debugPlayerRect.x = levelUnitToPixel(pixPerUnit, player.position.x - 0.5f*playerSize.x);
-                    debugPlayerRect.y = levelUnitToPixel(pixPerUnit, player.position.y - 0.5f*playerSize.y);
+                    debugPlayerRect.y = levelUnitToPixel(pixPerUnit, level.height - player.position.y - 0.5f*playerSize.y);
 
-                    SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
+                    //SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
+                    
+                    // Find the zone containing the rect
+                    uint32 minTX = (uint32)5;
+                    uint32 maxTX = (uint32)10+1;
+                    uint32 mintTY = (uint32)(level.height - 10);
+                    uint32 maxTY = (uint32)(level.height - 5)+1;
+                    
+                    Rect wallRect = {
+                        Vec2(0,0),
+                        Vec2(1,1)
+                    };
+                    
+                    for (uint32 j = mintTY; j < maxTY; j++)
+                    {
+                        for (uint32 i = minTX; i < maxTX; i++)
+                        {
+                            wallRect.min = levelGridToWorld(&level, i, j);
+                            wallRect.max = levelGridToWorld(&level, i+1, j+1 );
+                            
+                            SDL_Rect debugPlayerRect;
+                            debugPlayerRect.w = levelUnitToPixel(pixPerUnit, 1);
+                            debugPlayerRect.h = levelUnitToPixel(pixPerUnit, 1);
+                            debugPlayerRect.x = levelUnitToPixel(pixPerUnit, i);
+                            debugPlayerRect.y = levelUnitToPixel(pixPerUnit, j);
+                            
+                            //SDL_BlitScaled(debugSurface,0,window_surface,&debugPlayerRect);
+                        }
+                    }
                 }
                 
 #endif

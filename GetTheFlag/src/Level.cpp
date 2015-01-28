@@ -3,26 +3,30 @@
 #include <SDL_surface.h>
 #include <SDL_error.h>
 
+/*
+ * Static collision detection test of a rectangle to the walls in the level
+ */
 bool levelRectCollides(Level* level, const Rect& rect)
 {
     // Find the zone containing the rect
     uint32 minTX = (uint32)rect.min.x;
     uint32 maxTX = (uint32)rect.max.x+1;
-    uint32 mintTY = (uint32)rect.min.y;
-    uint32 maxTY = (uint32)rect.max.y+1;
+    uint32 minTY = (uint32)(level->height - rect.max.y);
+    uint32 maxTY = (uint32)(level->height - rect.min.y)+1;
     
     Rect wallRect = {
         Vec2(0,0),
         Vec2(1,1)
     };
-    for (uint32 j = mintTY; j < maxTY; j++)
+    
+    for (uint32 j = minTY; j < maxTY; j++)
     {
         for (uint32 i = minTX; i < maxTX; i++)
         {
             if (levelValueAtTile(level, i, j) == WALL)
             {
-                wallRect.min = Vec2(i, j);
-                wallRect.max = Vec2(i+1,j+1);
+                wallRect.min = levelGridToWorld(level, i, j+1);
+                wallRect.max = levelGridToWorld(level, i+1, j );
                 if(rectCollidesRect(rect, wallRect))
                 {
                     return true;
@@ -35,76 +39,114 @@ bool levelRectCollides(Level* level, const Rect& rect)
 }
 
 
-bool levelRectCollides(Level* level, const Rect& a, Vec2& penetration)
+/*
+ * Dynamic collision detection test of a rectangle to the walls in the level
+ * Returns the closest intersection point along the trajectory and the normal at the contact edge
+ * this use minkowski sum to simplify the test to a line/rect test
+ */
+bool levelRectCollides(Level* level,
+                       const Vec2& size, const Vec2& position,
+                       const Vec2& velocity, const real32 dt,
+                       Vec2& collisionPoint, Vec2& normal )
 {
-    // Find the zone containing the rect
-    uint32 minTX = (uint32)a.min.x;
-    uint32 maxTX = (uint32)a.max.x+1;
-    uint32 mintTY = (uint32)a.min.y;
-    uint32 maxTY = (uint32)a.max.y+1;
+    Vec2 nPos = position + velocity*dt;
     
-    Rect b = {
-        Vec2(0,0),
-        Vec2(1,1)
-    };
+    Vec2 halfSize = 0.5f*size;
+    // Find the zone containing the rect
+    uint32 minTX = min((uint32)(position.x - halfSize.x), (uint32)(nPos.x - halfSize.x)) ;
+    uint32 maxTX = max((uint32)(position.x + halfSize.x), (uint32)(nPos.x + halfSize.x)) + 1;
+    uint32 minTY = min((uint32)(level->height - position.y - halfSize.y), (uint32)(level->height - nPos.y - halfSize.y));
+    uint32 maxTY = max((uint32)(level->height - position.y + halfSize.y), (uint32)(level->height - nPos.y + halfSize.y))+1;
+    
+    // Some values usefull for the computation of each rect
+    real32 maxDist = length(velocity)*dt;
+    Vec2 d = normalize(velocity);
+    real32 fx = 1.0f / d.x;
+    real32 fy = 1.0f / d.y;
+    
+    // Find the distance to the closest intersection
+    // And the index of the box
+    real32 tMin = 10000.0f;
+    uint32 iC;
+    uint32 jC;
     
     bool collides = false;
-    for (uint32 j = mintTY; j < maxTY; j++)
+    for (uint32 j = minTY; j < maxTY; j++)
     {
         for (uint32 i = minTX; i < maxTX; i++)
         {
-            if (levelValueAtTile(level, i, j) == WALL)
+            if(levelValueAtTile(level, i, j) == WALL)
             {
-                b.min = Vec2(i,j);
-                b.max = Vec2(i+1,j+1);
+                // B rect, unit rect of the level grown by the test rect size for minkowski
+                Vec2 bMin = levelToWorld(level, (real32)i - halfSize.x, (real32)j + halfSize.y + 1.0f);
+                Vec2 bMax = levelToWorld(level, (real32)i + halfSize.x + 1.0f, (real32)j - halfSize.y);
                 
-                if(rectCollidesRect(a, b))
+                real32 txm = (bMin.x-position.x) * fx;
+                real32 txM = (bMax.x-position.x) * fx;
+                real32 tym = (bMin.y-position.y) * fy;
+                real32 tyM = (bMax.y-position.y) * fy;
+                
+                real32 tmin = max(min(txm,txM), min(tym,tyM));
+                real32 tmax = min(max(txm,txM), max(tym,tyM));
+                
+                //ASSERT(!(tmin!=tmin));
+                //ASSERT(!(tmax!=tmax));
+                
+                if(tmin < tmax && tmax > 0)
                 {
-                    collides = true;
-                    
-                    if(a.min.x < b.max.x && a.max.x > b.max.x)
+                    if(tmin < maxDist && tmin < tMin)
                     {
-                        // a is inside b from the right
-                        penetration.x = a.min.x - b.max.x;
-                    }
-                    else if(a.max.x > b.min.x && a.min.x < b.min.x)
-                    {
-                        // a is inside b from the left
-                        penetration.x = a.max.x - b.min.x;
-                    }
-                    
-                    if(a.min.y < b.max.y && a.max.y > b.max.y)
-                    {
-                        // a is inside b from the top
-                        penetration.y = a.min.y - b.max.y;
-                    }
-                    else if(a.max.y > b.min.y && a.min.y < b.min.y)
-                    {
-                        // a is inside b from the bottom
-                        penetration.y = a.max.y - b.min.y;
-                    }
-                    
-                    if(abs(penetration.y) > abs(penetration.x))
-                    {
-                        penetration.y = 0;
-                    }
-                    else
-                    {
-                        penetration.x = 0;
+                        collides = true;
+                        tMin = tmin;
+                        iC = i;
+                        jC = j;
                     }
                 }
             }
         }
     }
     
-    return collides;
+    if(collides)
+    {
+        ASSERT(!(tMin!=tMin));
+        collisionPoint = position + tMin * d;
+        
+        // Compute the normal
+        Vec2 bMin = levelToWorld(level, (real32)iC - halfSize.x, (real32)jC + halfSize.y + 1.0f);
+        Vec2 bMax = levelToWorld(level, (real32)iC + halfSize.x + 1.0f, (real32)jC - halfSize.y);
+        
+        if(collisionPoint.x == bMin.x)
+        {
+            normal = Vec2(-1, 0);
+        }
+        else if(collisionPoint.x == bMax.x)
+        {
+            normal = Vec2(1, 0);
+        }
+        else if(collisionPoint.y == bMin.y)
+        {
+            normal = Vec2(0, -1);
+        }
+        else if(collisionPoint.y == bMax.y)
+        {
+            normal = Vec2(0, 1);
+        }
+        else
+        {
+            ASSERT(0);
+        }
+        
+        return true;
+    }
+    
+    return false;
 }
 
 
 // TODO: Free tiles memory
-bool loadLevel(Level* level)
+bool loadLevel(Level* level, const char* filename)
 {
-    SDL_Surface* levelBitmap = SDL_LoadBMP("data/testlvl.bmp");
+    SDL_Surface* levelBitmap = SDL_LoadBMP(filename);
     if (levelBitmap)
     {
         uint32 LEVEL_WIDTH = levelBitmap->w;
