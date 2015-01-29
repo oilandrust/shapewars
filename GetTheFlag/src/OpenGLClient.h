@@ -4,6 +4,9 @@
 #include "GetTheFlag.h"
 #include "Vec2.h"
 
+#include <SDL.h>
+#include <SDL_image.h>
+
 #include <GL/glew.h>
 #include <OpenGL/OpenGL.h>
 
@@ -36,9 +39,12 @@ struct Texture {
     uint32 height;
     
     void* data;
+    SDL_Surface* surface;
 };
 
 void _logOpenGLErrors(const char *file, int32 line);
+
+void loadTexture(Texture* tex, const char* filename);
 
 bool createTexture(Texture* texture);
 

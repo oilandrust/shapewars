@@ -9,6 +9,10 @@ add_executable(GetTheFlag
 	src/Vec2.h
 	src/OpenGLClient.h
 	src/OpenGLClient.cpp
+	src/Entities.cpp
+	src/Entities.h
+	src/Renderer.cpp
+	src/Renderer.h
 )
 target_link_libraries(GetTheFlag ${SDL2_LIBRARY})
 target_link_libraries(GetTheFlag ${SDL2IMAGE_LIBRARY})

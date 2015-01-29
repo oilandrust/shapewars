@@ -14,7 +14,6 @@ enum TILE_TYPE {
 };
 
 
-
 struct Level {
     uint8* tiles;
     uint32 width;
@@ -49,6 +48,10 @@ inline bool isOutsideLevel(real32 w, real32 h, const Vec2& v)
     return v.x < 0 || v.y < 0 || v.x > w || v.y > h;
 }
 
+inline uint32 levelUnitToPixel(real32 pixerPerUnit, real32 c)
+{
+    return roundReal32toInt32(c*pixerPerUnit);
+}
 struct Rect {
     Vec2 min;
     Vec2 max;

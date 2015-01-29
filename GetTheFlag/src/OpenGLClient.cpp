@@ -21,6 +21,36 @@ bool createTexture(Texture* texture)
     return true;
 }
 
+SDL_Surface* loadBitmap(const char* filename)
+{
+    SDL_RWops *rwop;
+    rwop = SDL_RWFromFile(filename, "rb");
+    if(!rwop)
+    {
+        printf("SDL_RWFromFile: %s\n", IMG_GetError());
+        ASSERT(false, IMG_GetError());
+    }
+    SDL_Surface* bitmap = IMG_LoadPNG_RW(rwop);
+    if(!bitmap)
+    {
+        printf("IMG_LoadPNG_RW: %s\n", IMG_GetError());
+        printf("Error loading: %s\n", filename);
+        ASSERT(false, IMG_GetError());
+    }
+    return bitmap;
+}
+
+void loadTexture(Texture* tex, const char* filename)
+{
+    SDL_Surface* surface = loadBitmap(filename);
+    
+    tex->data = surface->pixels;
+    tex->width = surface->w;
+    tex->height = surface->h;
+    tex->surface = surface;
+    createTexture(tex);
+}
+
 bool createVertexAndIndexBuffer(Mesh *mesh)
 {
     GLuint vao;
