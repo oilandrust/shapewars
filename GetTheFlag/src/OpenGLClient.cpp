@@ -1,7 +1,27 @@
 #include "OpenGLClient.h"
 #include "cstdio"
 
-void createVertexAndIndexBuffer(Mesh *mesh)
+
+bool createTexture(Texture* texture)
+{
+    glGenTextures(1, &texture->texId);
+    glBindTexture(GL_TEXTURE_2D, texture->texId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,
+                 0,
+                 GL_RGBA,
+                 texture->width, texture->height, 0,
+                 GL_RGBA,
+                 GL_UNSIGNED_INT_8_8_8_8,
+                 texture->data);
+    
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    logOpenGLErrors();
+    return true;
+}
+
+bool createVertexAndIndexBuffer(Mesh *mesh)
 {
     GLuint vao;
     glGenVertexArrays(1, &vao);
@@ -11,7 +31,7 @@ void createVertexAndIndexBuffer(Mesh *mesh)
     glGenBuffers(1, &mesh->vboId);
     glBindVertexArray(mesh->vboId);
     glBindBuffer(GL_ARRAY_BUFFER, mesh->vboId);
-    glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(Vec2), mesh->positions, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(Vec2), mesh->positions, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     
     //Create IBO
@@ -21,6 +41,8 @@ void createVertexAndIndexBuffer(Mesh *mesh)
     
     ASSERT(mesh->vboId != GL_INVALID_VALUE, "Generatin VBO failed");
     ASSERT(mesh->iboId != GL_INVALID_VALUE, "Generatin IBO failed");
+    
+    return !glGetError();
 }
 
 GLuint createShader(GLenum shaderType, const char* filename)
@@ -135,4 +157,23 @@ void printProgramLog(GLuint program)
     }
 }
 
+void _logOpenGLErrors(const char *file, int32 line)
+{
+    GLenum err (glGetError());
+    
+    while(err!=GL_NO_ERROR)
+    {
+        const char* error;
+        switch(err) {
+            case GL_INVALID_OPERATION:      error="INVALID_OPERATION";      break;
+            case GL_INVALID_ENUM:           error="INVALID_ENUM";           break;
+            case GL_INVALID_VALUE:          error="INVALID_VALUE";          break;
+            case GL_OUT_OF_MEMORY:          error="OUT_OF_MEMORY";          break;
+            case GL_INVALID_FRAMEBUFFER_OPERATION:  error="INVALID_FRAMEBUFFER_OPERATION";  break;
+        }
+        
+        printf("GL_%s at line %d of %s\n",error,line,file);
+        err=glGetError();
+    }
+}
 

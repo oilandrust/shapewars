@@ -1,8 +1,11 @@
 #version 140
 
+smooth in vec2 texture_coord;
 out vec4 fragment; 
+
+uniform sampler2D sprite_tex;
 
 void main() 
 {
-	fragment = vec4( 1.0, 1.0, 1.0, 1.0 ); 
+	fragment = texture(sprite_tex, texture_coord).gbar;
 }

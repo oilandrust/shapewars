@@ -18,8 +18,10 @@ struct Player {
     Vec2 velocity;
     Vec2 accel;
     Vec2 aimDir;
+    real32 spriteSize;
     real32 size;
     SDL_Surface* bitmaps[3];
+    Texture textures[3];
 };
 
 #define MAX_BULLET_COUNT 50
@@ -58,6 +60,14 @@ SDL_Surface* loadBitmap(const char* filename)
         ASSERT(false, IMG_GetError());
     }
     return bitmap;
+}
+
+bool loadTexture(Texture* tex, SDL_Surface* surface)
+{
+    tex->data = surface->pixels;
+    tex->width = surface->w;
+    tex->height = surface->h;
+    return createTexture(tex);
 }
 
 
@@ -110,8 +120,6 @@ int main()
             glewExperimental = GL_TRUE;
             GLenum result = glewInit();
             ASSERT(result == GLEW_OK, "Error initializing GLEW!" + std::string((const char*)glewGetErrorString(result)));
-            // TODO: glewInit() created a GL_INVALID_ENUM
-            //ASSERT(!glGetError(), "Error Initializing GLEW");
             
             //Use Vsync
             if( SDL_GL_SetSwapInterval( 1 ) < 0 )
@@ -126,10 +134,12 @@ int main()
             spriteShader.projLoc = glGetUniformLocation(spriteShader.progId, "projection");
             spriteShader.posLoc = glGetUniformLocation(spriteShader.progId, "entity_position");
             spriteShader.sizeLoc = glGetUniformLocation(spriteShader.progId, "entity_size");
+            spriteShader.texLoc = glGetUniformLocation(spriteShader.progId, "sprite_texture");
             
             Mesh spriteMesh;
-            Vec2 rectVertices[6];
-            uint32 rectIndices[6] = {0,1,2,0,2,3};
+            // 2 triangles -> 6 vertices + 6 tcs
+            Vec2 rectVertices[12];
+            //uint32 rectIndices[12] = {0,1,2,0,2,3};
             rectVertices[0] = Vec2(-.5f,-.5f);
             rectVertices[1] = Vec2(-.5f,.5f);
             rectVertices[2] = Vec2(.5f,.5f);
@@ -137,8 +147,15 @@ int main()
             rectVertices[4] = Vec2(.5f,.5f);
             rectVertices[5] = Vec2(.5f,-.5f);
             
+            rectVertices[6] = Vec2(.0f,0.f);
+            rectVertices[7] = Vec2(0.f,1.f);
+            rectVertices[8] = Vec2(1.f,1.f);
+            rectVertices[9] = Vec2(0.f,0.f);
+            rectVertices[10] = Vec2(1.f,1.f);
+            rectVertices[11] = Vec2(1.f,0.f);
+            
             spriteMesh.positions = rectVertices;
-            spriteMesh.indices = rectIndices;
+            //spriteMesh.indices = rectIndices;
             createVertexAndIndexBuffer(&spriteMesh);
             
             // Load The Level
@@ -161,8 +178,11 @@ int main()
             
             // Load player bitmap
             player.bitmaps[0] = loadBitmap("data/player1_right_standing.png");
+            loadTexture(&player.textures[0], player.bitmaps[0]);
             player.bitmaps[1] = loadBitmap("data/player1_right_walking_1.png");
+            loadTexture(&player.textures[1], player.bitmaps[1]);
             player.bitmaps[2] = loadBitmap("data/player1_right_walking_2.png");
+            loadTexture(&player.textures[2], player.bitmaps[2]);
             Vec2 playerSize(0.4*player.size, player.size);
             
             
@@ -172,10 +192,14 @@ int main()
             {
                 printf("loadBitmap: %s\n", IMG_GetError());
             }
+            Texture groungTexture;
+            loadTexture(&groungTexture, backgroundBitmap);
+            ASSERT(success, "Initializing texture failed");
             
             // Load Level element bitmaps
             SDL_Surface* gameEntitySurfaces[MAX_ENTITY_TYPE];
             const char* gameEntityImageFilename[MAX_ENTITY_TYPE];
+            Texture gameEntityTextures[MAX_ENTITY_TYPE];
             gameEntityImageFilename[TILE_TYPE::WALL] = "data/brick.png";
             gameEntityImageFilename[TILE_TYPE::SHOTGUN] = "data/shotgun.png";
             gameEntityImageFilename[TILE_TYPE::MACHINE_GUN] = "data/machine_gun.png";
@@ -185,10 +209,13 @@ int main()
             for (uint32 i = 0; i < TILE_TYPE::MAX_ENTITY_TYPE; i++)
             {
                 gameEntitySurfaces[i] = loadBitmap(gameEntityImageFilename[i]);
+                loadTexture(&gameEntityTextures[i], gameEntitySurfaces[i]);
             }
             
             // Load Other bitmaps
             SDL_Surface* bulletBitmap = loadBitmap("data/bullet.png");
+            Texture bulletTexture;
+            loadTexture(&bulletTexture, bulletBitmap);
             
             // Pool for bullets
             Bullet bullets[MAX_BULLET_COUNT];
@@ -205,6 +232,9 @@ int main()
             uint64 endCounter = 0;
             uint64 counterFrequency = SDL_GetPerformanceFrequency();
             
+            // Check error at initialization
+            logOpenGLErrors();
+            
             bool running = true;
             // The main Loop
             while (running)
@@ -218,6 +248,16 @@ int main()
                    || input.keyStates[ESCAPE].clicked)
                 {
                     running = false;
+                }
+                
+                if(input.keyStates[RELOAD].clicked)
+                {
+                    glDeleteShader(spriteShader.progId);
+                    createShaderProgram(&spriteShader,"shaders/sprite.vs","shaders/sprite.fs");
+                    spriteShader.projLoc = glGetUniformLocation(spriteShader.progId, "projection");
+                    spriteShader.posLoc = glGetUniformLocation(spriteShader.progId, "entity_position");
+                    spriteShader.sizeLoc = glGetUniformLocation(spriteShader.progId, "entity_size");
+                    spriteShader.texLoc = glGetUniformLocation(spriteShader.progId, "sprite_texture");
                 }
                 
                 
@@ -330,13 +370,16 @@ int main()
                 }
                 
                 //Animate
+                Texture* playerTexture;
                 SDL_Surface* playerBitmap;
                 if(player.velocity.x > 0 || player.velocity.y > 0)
                 {
+                    playerTexture = &player.textures[1];
                     playerBitmap = player.bitmaps[1];
                 }
                 else
                 {
+                    playerTexture = &player.textures[0];
                     playerBitmap = player.bitmaps[0];
                 }
  
@@ -445,6 +488,9 @@ int main()
                 
                 glClearColor(0.f, 0.f, 0.f, 1.f);
                 glClear(GL_COLOR_BUFFER_BIT);
+                glEnable(GL_BLEND);
+                glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+                glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
                 
                 glUseProgram(spriteShader.progId);
                 
@@ -454,8 +500,21 @@ int main()
                 
                 glBindBuffer(GL_ARRAY_BUFFER, spriteMesh.vboId);
                 glEnableVertexAttribArray(0);
+                glEnableVertexAttribArray(1);
                 glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)(6 * sizeof(Vec2)));
                 
+                // Bind the texture
+                glActiveTexture(GL_TEXTURE0);
+                glUniform1i(spriteShader.texLoc, 0);
+                
+                
+                // Ground
+                glBindTexture(GL_TEXTURE_2D, groungTexture.texId);
+                glUniform2f(spriteShader.sizeLoc, level.width, level.height);
+                glUniform2f(spriteShader.posLoc, 0.5*level.width, 0.5f*level.height);
+                glDrawArrays(GL_TRIANGLES, 0, 6);
+
                 // Walls
                 glUniform2f(spriteShader.sizeLoc,1,1);
                 for (uint32 j = 0; j < level.height; j++)
@@ -463,16 +522,15 @@ int main()
                     for (uint32 i = 0; i < level.width; i++)
                     {
                         uint8 value = levelValueAtTile(&level,i,j);
-                        if(value == WALL)
-                        {
-                            glUniform2f(spriteShader.posLoc, i+0.5f ,j+0.5f);
-                            glDrawArrays(GL_TRIANGLES, 0, 6);
-                        }
+                        glBindTexture(GL_TEXTURE_2D, gameEntityTextures[value].texId);
+                        glUniform2f(spriteShader.posLoc, i+0.5f ,j+0.5f);
+                        glDrawArrays(GL_TRIANGLES, 0, 6);
                     }
                 }
                 
                 // Bullets
                 glUniform2fv(spriteShader.sizeLoc, 1, &bulletSize.x);
+                glBindTexture(GL_TEXTURE_2D, bulletTexture.texId);
                 for (uint32 i = 0; i < bulletCount; i++)
                 {
                     glUniform2fv(spriteShader.posLoc, 1, &bullets[i].position.x);
@@ -480,14 +538,16 @@ int main()
                 }
                 
                 // Player
-                glUniform2fv(spriteShader.sizeLoc, 1, &playerSize.x);
+                glUniform2f(spriteShader.sizeLoc, player.size, player.size);
                 glUniform2fv(spriteShader.posLoc, 1, &player.position.x);
+                glBindTexture(GL_TEXTURE_2D, playerTexture->texId);
                 glDrawArrays(GL_TRIANGLES, 0, 6);
                 
                 glDisableVertexAttribArray(0);
                 glUseProgram(0);
                 
                 SDL_GL_SwapWindow(window);
+                //logOpenGLErrors();
 #endif
                 
                 // Update the clock

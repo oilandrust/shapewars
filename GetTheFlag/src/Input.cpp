@@ -39,6 +39,10 @@ void processInput(Input* input)
                     {
                         input->keyStates[RIGHT].held = false;
                     }
+                    if(event.key.keysym.sym == SDLK_r)
+                    {
+                        input->keyStates[RELOAD].held = false;
+                    }
                 }break;
                     
                 case SDL_KEYDOWN:
@@ -72,6 +76,11 @@ void processInput(Input* input)
                     {
                         input->keyStates[FIRE1].clicked = true;
                         input->keyStates[FIRE1].held = true;
+                    }
+                    if(event.key.keysym.sym == SDLK_r)
+                    {
+                        input->keyStates[RELOAD].clicked = true;
+                        input->keyStates[RELOAD].held = true;
                     }
                 }break;
                     

@@ -7,6 +7,8 @@
 #include <GL/glew.h>
 #include <OpenGL/OpenGL.h>
 
+#define logOpenGLErrors() _logOpenGLErrors(__FILE__,__LINE__)
+
 struct Shader {
     GLuint progId;
     
@@ -17,18 +19,32 @@ struct Shader {
     GLint projLoc;
     GLint posLoc;
     GLint sizeLoc;
+    GLint texLoc;
 };
 
 struct Mesh {
-    Vec2* positions;
-    uint32* indices;
     GLuint vboId;
     GLuint iboId;
+    
+    Vec2* positions;
+    uint32* indices;
 };
+
+struct Texture {
+    GLuint texId;
+    uint32 width;
+    uint32 height;
+    
+    void* data;
+};
+
+void _logOpenGLErrors(const char *file, int32 line);
+
+bool createTexture(Texture* texture);
 
 bool createShaderProgram(Shader* shader, const char* vsShaderFilename, const char* fsShaderFilename);
 
-void createVertexAndIndexBuffer(Mesh *mesh);
+bool createVertexAndIndexBuffer(Mesh *mesh);
 
 inline void ortho(real32* mat, real32 left, real32 right, real32 bottom, real32 top, real32 near, real32 far)
 {
@@ -47,8 +63,8 @@ inline void ortho(real32* mat, real32 left, real32 right, real32 bottom, real32 
     mat[11] = -fni*(far+near);
 }
 
-static void printShaderLog(GLuint shader);
-static void printProgramLog(GLuint program);
+void printShaderLog(GLuint shader);
+void printProgramLog(GLuint program);
 
 
 #endif

@@ -18,6 +18,7 @@ enum KEYS {
     FIRE2,
     QUIT,
     ESCAPE,
+    RELOAD,
     
     NUM_KEYS
 };
