@@ -173,15 +173,15 @@ bool loadLevel(Level* level, const char* filename)
                 }
                 else if(pixel == 0xff0000ff) // Red
                 {
-                    tiles[index] = TILE_TYPE::MACHINE_GUN;
+                    tiles[index] = TILE_TYPE::SHOTGUN;
                 }
                 else if(pixel == 0x00ff00ff) // Green
                 {
-                    tiles[index] = TILE_TYPE::SHOTGUN;
+                    tiles[index] = TILE_TYPE::BOMB;
                 }
                 else if(pixel == 0x0000ffff) // Blue
                 {
-                    tiles[index] = TILE_TYPE::BOMB;
+                    tiles[index] = TILE_TYPE::MACHINE_GUN;
                 }
                 else if(pixel == 0xffff00ff) // Yellow
                 {
@@ -196,6 +196,7 @@ bool loadLevel(Level* level, const char* filename)
         level->tiles = tiles;
         level->width = LEVEL_WIDTH;
         level->height = LEVEL_HEIGHT;
+        
         
         return true;
     }

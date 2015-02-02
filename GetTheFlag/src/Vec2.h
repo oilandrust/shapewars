@@ -8,6 +8,7 @@ struct Vec2 {
     real32 y;
     
     Vec2(real32 x_, real32 y_):x(x_),y(y_){}
+    Vec2(real32 x_):x(x_),y(x_){}
     Vec2(){}
 };
 

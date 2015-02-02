@@ -51,29 +51,158 @@ void loadTexture(Texture* tex, const char* filename)
     createTexture(tex);
 }
 
-bool createVertexAndIndexBuffer(Mesh *mesh)
-{
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
+bool createBufferObject(BufferObject* object) {
     
-    //Create VBO
-    glGenBuffers(1, &mesh->vboId);
-    glBindVertexArray(mesh->vboId);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh->vboId);
-    glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(Vec2), mesh->positions, GL_STATIC_DRAW);
+    glGenBuffers(1, &object->id);
+    glBindBuffer(GL_ARRAY_BUFFER, object->id);
+    glBufferData(GL_ARRAY_BUFFER, object->count * object->components * sizeof(real32), object->data, GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     
-    //Create IBO
-    glGenBuffers(1, &mesh->iboId);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->iboId);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(uint32), mesh->indices, GL_STATIC_DRAW);
+    return true;
+}
+
+bool create2DVertexBuffer(Mesh2 *mesh)
+{
     
-    ASSERT(mesh->vboId != GL_INVALID_VALUE, "Generatin VBO failed");
-    ASSERT(mesh->iboId != GL_INVALID_VALUE, "Generatin IBO failed");
+    //Create VBO
+    {
+        glGenBuffers(1, &mesh->vboId);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh->vboId);
+        glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(Vec2), mesh->positions, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
     
+    // Create the vao
+    {
+        glGenVertexArrays(1, &mesh->vaoId);
+        glBindVertexArray(mesh->vaoId);
+        
+            // Bind it to the vbo
+            glBindBuffer(GL_ARRAY_BUFFER, mesh->vboId);
+            glEnableVertexAttribArray(0);
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void*)(6 * sizeof(Vec2)));
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        
+        glBindVertexArray(0);
+    }
     return !glGetError();
 }
+
+bool create3DVertexBuffer(Mesh3 *mesh)
+{
+    
+    //Create VBO
+    {
+        glGenBuffers(1, &mesh->vboId);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh->vboId);
+        glBufferData(GL_ARRAY_BUFFER, 6 * 12 * sizeof(Vec3), mesh->positions, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+    
+    // Create the vao
+    {
+        glGenVertexArrays(1, &mesh->vaoId);
+        glBindVertexArray(mesh->vaoId);
+        
+        // Bind it to the vbo
+        glBindBuffer(GL_ARRAY_BUFFER, mesh->vboId);
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)(3 * 12 * sizeof(Vec3)));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        
+        glBindVertexArray(0);
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+    }
+    return !glGetError();
+}
+
+GLuint create3DVertexArray(Mesh3D *mesh)
+{
+    //Create VBO
+    GLuint vbo, nbo, cbo, tbo;
+    {
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec3), mesh->positions, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        
+        if(mesh->normals)
+        {
+            glGenBuffers(1, &nbo);
+            glBindBuffer(GL_ARRAY_BUFFER, nbo);
+            glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec3), mesh->normals, GL_STATIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        }
+        
+        if(mesh->colors)
+        {
+            glGenBuffers(1, &cbo);
+            glBindBuffer(GL_ARRAY_BUFFER, cbo);
+            glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec3), mesh->colors, GL_STATIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        }
+        
+        if(mesh->uvs)
+        {
+            glGenBuffers(1, &tbo);
+            glBindBuffer(GL_ARRAY_BUFFER, tbo);
+            glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec2), mesh->uvs, GL_STATIC_DRAW);
+            glBindBuffer(GL_ARRAY_BUFFER, 0);
+        }
+    }
+    
+    // Element Buffer
+    GLuint ibo;
+    {
+        glGenBuffers(1, &ibo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3*mesh->fCount * sizeof(uint32), mesh->indices, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
+    
+    // Create the vao
+    GLuint vao;
+    {
+        glGenVertexArrays(1, &vao);
+        glBindVertexArray(vao);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        
+        if(mesh->normals)
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, nbo);
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        }
+        
+        if(mesh->colors)
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, cbo);
+            glEnableVertexAttribArray(2);
+            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        }
+        
+        if(mesh->uvs)
+        {
+            glBindBuffer(GL_ARRAY_BUFFER, tbo);
+            glEnableVertexAttribArray(3);
+            glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        }
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+    return vao;
+}
+
 
 GLuint createShader(GLenum shaderType, const char* filename)
 {
@@ -128,12 +257,12 @@ bool createShaderProgram(Shader* shader, const char* vsShaderFilename, const cha
     }
     
     // Get Vertex Location
-    shader->vertexAttrLoc = glGetAttribLocation(shader->progId, "pos2D");
-    if(shader->vertexAttrLoc == -1)
-    {
-        printf( "pos2D is not a valid glsl program variable!\n" );
-        success = false;
-    }
+//    shader->vertexAttrLoc = glGetAttribLocation(shader->progId, "pos");
+//    if(shader->vertexAttrLoc == -1)
+//    {
+//        printf( "pos is not a valid glsl program variable!\n" );
+//        success = false;
+//    }
 
     return success;
 }
@@ -206,4 +335,6 @@ void _logOpenGLErrors(const char *file, int32 line)
         err=glGetError();
     }
 }
+
+
 

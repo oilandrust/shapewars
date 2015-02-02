@@ -3,9 +3,12 @@
 
 #include "GetTheFlag.h"
 #include "Vec2.h"
+#include "Vec3.h"
+#include "Mesh.h"
 
 #include <SDL.h>
 #include <SDL_image.h>
+#include <cmath>
 
 #include <GL/glew.h>
 #include <OpenGL/OpenGL.h>
@@ -20,17 +23,34 @@ struct Shader {
     
     // uniforms
     GLint projLoc;
+    GLint viewLoc;
     GLint posLoc;
     GLint sizeLoc;
     GLint texLoc;
+    GLint diffuseLoc;
+    GLint rotLoc;
 };
 
-struct Mesh {
+struct BufferObject {
+    void* data;
+    uint32 count;
+    uint32 components;
+    GLuint id;
+    
+};
+
+struct Mesh2 {
+    GLuint vaoId;
     GLuint vboId;
-    GLuint iboId;
     
     Vec2* positions;
-    uint32* indices;
+};
+
+struct Mesh3 {
+    GLuint vaoId;
+    GLuint vboId;
+    
+    Vec3* positions;
 };
 
 struct Texture {
@@ -50,13 +70,18 @@ bool createTexture(Texture* texture);
 
 bool createShaderProgram(Shader* shader, const char* vsShaderFilename, const char* fsShaderFilename);
 
-bool createVertexAndIndexBuffer(Mesh *mesh);
+bool create2DVertexBuffer(Mesh2 *mesh);
+
+bool create3DVertexBuffer(Mesh3 *mesh);
+
+GLuint create3DVertexArray(Mesh3D *mesh);
 
 inline void ortho(real32* mat, real32 left, real32 right, real32 bottom, real32 top, real32 near, real32 far)
 {
     real32 rli = 1.f/(right-left);
     real32 tbi = 1.f/(top - bottom);
     real32 fni = 1.f/(far - near);
+    
     // diag
     mat[0] = 2.f*rli;
     mat[5] = 2.f*tbi;
@@ -67,6 +92,17 @@ inline void ortho(real32* mat, real32 left, real32 right, real32 bottom, real32 
     mat[3] = -rli*(right+left);
     mat[7] = -tbi*(top+bottom);
     mat[11] = -fni*(far+near);
+}
+
+inline void perspective(real32* mat, real32 fovy, real32 aspect, real32 near, real32 far)
+{
+    real32 f = 1.f/tanf(.5f*fovy*PI/180.f);
+    real32 iNearFar = .1f/(near-far);
+    mat[0] = f/aspect;
+    mat[5] = f;
+    mat[10] = iNearFar * (far+near);
+    mat[11] = 2.f * far * near * iNearFar;
+    mat[14] = -1.f;
 }
 
 void printShaderLog(GLuint shader);

@@ -12,16 +12,19 @@ struct Player {
     Vec2 velocity;
     Vec2 accel;
     Vec2 aimDir;
+    
+    // This Could be static (Better for cache?)
+    Vec2 collisionSize;
     real32 acc;
     real32 drag;
     real32 spriteSize;
     real32 size;
-    Vec2 collisionSize;
     SDL_Surface* bitmaps[3];
     Texture textures[3];
     Texture* currentTexture;
 };
 
+void initializePlayer(Player* player);
 
 void updatePlayer(Player* player, Input* input, Level* level, real32 dt);
 
@@ -33,12 +36,17 @@ struct Bullet {
 };
 
 struct BulletManager {
-    Bullet* bullets;
+    Bullet bullets[MAX_BULLET_COUNT];
     uint32 bulletCount;
-    real32 bulletSpeed;
+    
+    // Constant among bullets
     Vec2 bulletSize;
+    real32 bulletSpeed;
+    Texture bulletTexture;
     SDL_Surface* bulletBitmap;
 };
+
+void initializeBullets(BulletManager* manager);
 
 void updateBullets(BulletManager* manager, Level* level, real32 dt);
 

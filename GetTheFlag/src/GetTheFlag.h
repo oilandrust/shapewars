@@ -38,6 +38,8 @@ typedef unsigned long uint64;
 typedef float real32;
 typedef double real64;
 
+#define PI 3.14159265
+
 template<typename T>
 inline T max(const T& a, const T&b)
 {

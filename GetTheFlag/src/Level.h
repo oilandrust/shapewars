@@ -18,7 +18,6 @@ struct Level {
     uint8* tiles;
     uint32 width;
     uint32 height;
-    real32 pixelPerUnit;
 };
 
 inline uint8 levelValueAtTile(Level* level, uint32 x, uint32 y)

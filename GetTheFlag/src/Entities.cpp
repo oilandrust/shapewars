@@ -2,6 +2,15 @@
 #include "Input.h"
 #include "Level.h"
 
+
+void initializeBullets(BulletManager* bulletManager)
+{
+    bulletManager->bulletCount = 0;
+    bulletManager->bulletSpeed = 30.0f;
+    bulletManager->bulletSize = Vec2(0.43f);
+    
+    loadTexture(&bulletManager->bulletTexture, "data/bullet.png");
+}
 uint32 createBullet(BulletManager* manager)
 {
     ASSERT(manager->bulletCount < MAX_BULLET_COUNT - 1, "Too many bullets");
@@ -40,6 +49,26 @@ void updateBullets(BulletManager* manager, Level* level, real32 dt)
     }
 }
 
+/*
+ * PLAYER
+ */
+
+void initializePlayer(Player* player)
+{
+    // acceleration and drag in m/s;
+    player->drag = 20.0f;
+    player->acc = 200.0f;
+    player->position = Vec2(3,3);
+    player->velocity = Vec2(0,0);
+    player->aimDir = Vec2(1,0);
+    player->size = 3.0f;
+    player->collisionSize = Vec2(0.4*player->size, 0.4*player->size);
+
+    // Load player bitmap
+    loadTexture(&player->textures[0], "data/player1_right_standing.png");
+    loadTexture(&player->textures[1], "data/player1_right_walking_1.png");
+    loadTexture(&player->textures[2], "data/player1_right_walking_2.png");
+}
 
 void updatePlayer(Player* player, Input* input, Level* level, real32 dt)
 {
@@ -62,6 +91,8 @@ void updatePlayer(Player* player, Input* input, Level* level, real32 dt)
     }
     if(abs(player->accel.x) > 0.0f || abs(player->accel.y) > 0.0f)
     {
+        
+        player->accel = normalize(player->accel);
         player->aimDir = player->accel;
     }
     Vec2 acceleration = player->acc*player->accel - player->drag*player->velocity;
