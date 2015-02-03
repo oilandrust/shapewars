@@ -144,7 +144,7 @@ bool levelRectCollides(Level* level,
 
 
 // TODO: Free tiles memory
-bool loadLevel(Level* level, const char* filename)
+bool loadLevel(Level* level, Entities* entities, const char* filename)
 {
     SDL_Surface* levelBitmap = SDL_LoadBMP(filename);
     if (levelBitmap)
@@ -152,7 +152,16 @@ bool loadLevel(Level* level, const char* filename)
         uint32 LEVEL_WIDTH = levelBitmap->w;
         uint32 LEVEL_HEIGHT = levelBitmap->h;
         uint8* tiles = new uint8[LEVEL_WIDTH*LEVEL_WIDTH];
+        level->width = LEVEL_WIDTH;
+        level->height = LEVEL_HEIGHT;
+        
         memset(tiles, 0, LEVEL_HEIGHT*LEVEL_WIDTH*sizeof(uint8));
+        
+        entities->nSG = 0;
+        entities->nWalls = 0;
+        entities->nMG = 0;
+        entities->nHearts = 0;
+        
         
         ASSERT(levelBitmap->format->BytesPerPixel == 4, "Wrong pixel format");
         ASSERT(levelBitmap->format->Amask == 0x000000ff, "Wrong pixel format");
@@ -167,35 +176,41 @@ bool loadLevel(Level* level, const char* filename)
             {
                 uint32 index = i+j*LEVEL_WIDTH;
                 uint32 pixel = pixels[index];
+                Vec2 worldPosition = levelGridToWorld(level, i, j) + Vec2(0.5f, -0.5f);
+                
                 if(pixel == 0x000000ff)     // Black
                 {
-                    tiles[index] = TILE_TYPE::WALL;
+                    tiles[index] = WALL;
+                    entities->walls[entities->nWalls++].position = worldPosition;
                 }
                 else if(pixel == 0xff0000ff) // Red
                 {
-                    tiles[index] = TILE_TYPE::SHOTGUN;
+                    tiles[index] = SHOTGUN;
+                    entities->sgPickups[entities->nSG++].position = worldPosition;
                 }
                 else if(pixel == 0x00ff00ff) // Green
                 {
-                    tiles[index] = TILE_TYPE::BOMB;
+                    tiles[index] = BOMB;
+                    entities->bombPickups[entities->nBombs++].position = worldPosition;
                 }
                 else if(pixel == 0x0000ffff) // Blue
                 {
-                    tiles[index] = TILE_TYPE::MACHINE_GUN;
+                    tiles[index] = MACHINE_GUN;
+                    entities->mgPickups[entities->nMG++].position = worldPosition;
                 }
                 else if(pixel == 0xffff00ff) // Yellow
                 {
-                    tiles[index] = TILE_TYPE::HEART;
+                    tiles[index] = HEART;
+                    entities->heartPickups[entities->nHearts++].position = worldPosition;
                 }
                 else
                 {
-                    tiles[index] = TILE_TYPE::MAX_ENTITY_TYPE;
+                    tiles[index] = MAX_ENTITY_TYPE;
                 }
             }
         }
         level->tiles = tiles;
-        level->width = LEVEL_WIDTH;
-        level->height = LEVEL_HEIGHT;
+        
         
         
         return true;

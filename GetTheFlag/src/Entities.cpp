@@ -63,11 +63,6 @@ void initializePlayer(Player* player)
     player->aimDir = Vec2(1,0);
     player->size = 3.0f;
     player->collisionSize = Vec2(0.4*player->size, 0.4*player->size);
-
-    // Load player bitmap
-    loadTexture(&player->textures[0], "data/player1_right_standing.png");
-    loadTexture(&player->textures[1], "data/player1_right_walking_1.png");
-    loadTexture(&player->textures[2], "data/player1_right_walking_2.png");
 }
 
 void updatePlayer(Player* player, Input* input, Level* level, real32 dt)
@@ -148,16 +143,6 @@ void updatePlayer(Player* player, Input* input, Level* level, real32 dt)
         // Stay inside the Level
         player->position = max(player->position,0.5f*player->collisionSize);
         player->position = min(player->position,Vec2(level->width,level->height)-0.5f*player->collisionSize);
-    }
-    
-    //Animate
-    if(player->velocity.x > 0 || player->velocity.y > 0)
-    {
-        player->currentTexture = &player->textures[1];
-    }
-    else
-    {
-        player->currentTexture = &player->textures[0];
     }
 
 }

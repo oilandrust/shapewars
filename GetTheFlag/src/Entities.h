@@ -7,6 +7,37 @@
 struct Input;
 struct Level;
 
+
+enum ENTITY_TYPE {
+    WALL = 0,
+    MACHINE_GUN,
+    SHOTGUN,
+    BOMB,
+    HEART,
+    MAX_ENTITY_TYPE
+};
+
+struct Entity {
+    Vec2 position;
+};
+
+struct Entities {
+    Entity walls[128];
+    uint32 nWalls;
+    
+    Entity heartPickups[32];
+    uint32 nHearts;
+    
+    Entity bombPickups[32];
+    uint32 nBombs;
+    
+    Entity mgPickups[32];
+    uint32 nMG;
+    
+    Entity sgPickups[32];
+    uint32 nSG;
+};
+
 struct Player {
     Vec2 position;
     Vec2 velocity;
@@ -19,9 +50,6 @@ struct Player {
     real32 drag;
     real32 spriteSize;
     real32 size;
-    SDL_Surface* bitmaps[3];
-    Texture textures[3];
-    Texture* currentTexture;
 };
 
 void initializePlayer(Player* player);

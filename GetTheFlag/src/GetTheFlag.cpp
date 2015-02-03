@@ -20,19 +20,24 @@
 
 
 // TODO: Free memory
-
-struct GameMemory {
-    Input input;
-    Player player;
-    Level level;
-    BulletManager bullets;
-};
-
 // TODO: Multiple Monitor
 // TODO: Understand how flip and blit works with monitor refresh sync
 // TODO: Improve the timer (fixed dt)
 // TODO: Rotate sprites
 // TODO: Create shader, VBuffer
+
+
+void drawEntitiesVertexColor(Entity* entities, uint32 count, Vec3 size, GLuint sizeLoc, GLuint posLoc , GLuint vao, uint32 indexCount)
+{
+    glBindVertexArray(vao);
+    glUniform3fv(sizeLoc,1,&size.x);
+    for (uint32 i = 0; i < count; i++) {
+        glUniform3f(posLoc, entities[i].position.x, entities[i].position.y, 1.f);
+        glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
+    }
+}
+
+
 
 int main()
 {
@@ -81,8 +86,9 @@ int main()
             intializeRendererRessources(&renderer);
             
             // Load The Level
+            Entities entities;
             Level level;
-            if(!loadLevel(&level,"data/lvl2.bmp"))
+            if(!loadLevel(&level, &entities, "data/lvl2.bmp"))
             {
                 printf("loadLevel: %s\n", IMG_GetError());
                 ASSERT(false, IMG_GetError());
@@ -95,22 +101,8 @@ int main()
             Player player;
             initializePlayer(&player);
             
-            
-            // Load Level element bitmaps
-            const char* gameEntityImageFilename[MAX_ENTITY_TYPE];
-            Texture gameEntityTextures[MAX_ENTITY_TYPE];
-            gameEntityImageFilename[TILE_TYPE::WALL] = "data/brick.png";
-            gameEntityImageFilename[TILE_TYPE::SHOTGUN] = "data/shotgun.png";
-            gameEntityImageFilename[TILE_TYPE::MACHINE_GUN] = "data/machine_gun.png";
-            gameEntityImageFilename[TILE_TYPE::HEART] = "data/heart_full.png";
-            gameEntityImageFilename[TILE_TYPE::BOMB] = "data/bomb.png";
-            // Load all the images of the tile sprites
-            for (uint32 i = 0; i < TILE_TYPE::MAX_ENTITY_TYPE; i++)
-            {
-                loadTexture(&gameEntityTextures[i], gameEntityImageFilename[i]);
-            }
 
-            Vec3 meshData[12*4096];
+            Vec3 meshData[50*4096];
             
             Mesh3D boxMesh;
             void* top = createCube(&boxMesh, (void*)meshData);
@@ -124,12 +116,23 @@ int main()
             top = loadObjMesh(&bombMesh, (void*)top, "data/bomb.obj",true);
             GLuint bombVao = create3DVertexArray(&bombMesh);
             
+            Mesh3D machineGunMesh;
+            top = loadObjMesh(&machineGunMesh, (void*)top, "data/ak47.obj",true);
+            GLuint machineGunVao = create3DVertexArray(&machineGunMesh);
+            
+            Mesh3D shotGunMesh;
+            top = loadObjMesh(&shotGunMesh, (void*)top, "data/shotgun.obj",true);
+            GLuint shotGunVao = create3DVertexArray(&shotGunMesh);
+            
             Mesh3D playerMesh;
-            top = loadObjMesh(&playerMesh, (void*)top, "data/mario.obj",true);
+            top = loadObjMesh(&playerMesh, (void*)top, "data/mario.obj");
             GLuint playerVao = create3DVertexArray(&playerMesh);
             
             Texture marioTexture;
             loadTexture(&marioTexture, "data/mario_main.png");
+            
+            Texture wallTexture;
+            loadTexture(&wallTexture, "data/brick.png");
             
             BulletManager bulletManager;
             initializeBullets(&bulletManager);
@@ -194,39 +197,43 @@ int main()
                     // TODO: Uniform buffer for matrixes
                     // TODO: Refactor
                     
-                    glClearDepth(1.0f);
-                    glDisable(GL_DEPTH_TEST);
-                    glDepthMask(GL_TRUE);
-                    glDepthFunc(GL_LEQUAL);
-                    glDepthRange(0.0f, 1.0f);
+                    // Render Begin
+                    {
+                        glClearDepth(1.0f);
+                        glEnable(GL_DEPTH_TEST);
+                        glDepthMask(GL_TRUE);
+                        glDepthFunc(GL_LEQUAL);
+                        glDepthRange(0.0f, 1.0f);
+                        
+                        
+                        // Set Global render states
+                        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                        glEnable(GL_BLEND);
+                        
+                        glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+                        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+                        logOpenGLErrors();
+                        
+                        // Go
+                        glClear(GL_COLOR_BUFFER_BIT);
+                    }
                     
-                    
-                    // Set Global render states
-                    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-                    glEnable(GL_BLEND);
-                    
-                    glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
-                    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
-                    logOpenGLErrors();
-                    
-                    // Go
-                    glClear(GL_COLOR_BUFFER_BIT);
-                    
-                    //
+                    // Set Global Uniforms
                     // Set The perspective matrix
+                    
                     real32 mat[16];
                     real32 aspect =  (real32)ScreenWidth/(real32)ScreenHeight;
-                    perspective(mat, 60.f, aspect, 1.f, 20.f);
+                    perspective(mat, 50.f, aspect, 1.f, 20.f);
                     
                     // Set the view Matrix
-                    Vec3 cameraPosition(0.4*level.width, -0.6*level.height, 15);
-                    Vec3 cameraTarget(0.5f*level.width, 0.5f*level.height, 0);
+                    Vec3 cameraPosition(0.3*level.width, -0.6*level.height, 20);
+                    Vec3 cameraTarget(0.4f*level.width, 0.2f*level.height, 0);
                     
                     Mat4 viewMatrix;
                     identity(viewMatrix);
                     lookAt(viewMatrix, cameraPosition, cameraTarget, Vec3(0,0,1));
                     inverseTransform(viewMatrix);
-
+                    
                     // RENDER 2D
                     {
                         Shader* spriteShader = &renderer.spriteShader;
@@ -239,10 +246,8 @@ int main()
                         glBindVertexArray(spriteMesh->vaoId);
                         
                         // Bind the texture to uniform
-                        {
-                            glActiveTexture(GL_TEXTURE0);
-                            glUniform1i(spriteShader->texLoc, 0);
-                        }
+                        glActiveTexture(GL_TEXTURE0);
+                        glUniform1i(spriteShader->texLoc, 0);
                         
                         // Rot Matrix
                         real32 rot[4] = {
@@ -255,6 +260,8 @@ int main()
                         glBindTexture(GL_TEXTURE_2D, groungTexture.texId);
                         glUniform2f(spriteShader->sizeLoc, level.width, level.height);
                     
+                        glUniform2f(spriteShader->posLoc, 0.5*level.width, -0.5f*level.height);
+                        glDrawArrays(GL_TRIANGLES, 0, 6);
                         glUniform2f(spriteShader->posLoc, 0.5*level.width, 0.5f*level.height);
                         glDrawArrays(GL_TRIANGLES, 0, 6);
                         glUniform2f(spriteShader->posLoc, 0.5*level.width, 1.5f*level.height);
@@ -267,29 +274,10 @@ int main()
                         glDrawArrays(GL_TRIANGLES, 0, 6);
                         glUniform2f(spriteShader->posLoc, -0.5*level.width, 1.5f*level.height);
                         glDrawArrays(GL_TRIANGLES, 0, 6);
-                        
-                        glUniform2f(spriteShader->sizeLoc,1,1);
-                        for (uint32 j = 0; j < level.height; j++)
-                        {
-                            for (uint32 i = 0; i < level.width; i++)
-                            {
-                                uint8 value = levelValueAtTile(&level,i,j);
-                                if (value < MAX_ENTITY_TYPE)
-                                {
-                                    if(value != WALL && value != HEART && value != BOMB)
-                                    {
-                                        glBindTexture(GL_TEXTURE_2D, gameEntityTextures[value].texId);
-                                        glUniform2f(spriteShader->posLoc, i+0.5f ,j+0.5f);
-                                        glDrawArrays(GL_TRIANGLES, 0, 6);
-                                    }
-                                }
-                            }
-                        }
                     }
                     logOpenGLErrors();
                     
                     
-                    glEnable(GL_DEPTH_TEST);
                     /*
                      * DRAW 3D COLOR VERTEX
                      */
@@ -300,28 +288,29 @@ int main()
                     
                     glUniform3f(vertexDiffuseShader->sizeLoc,1,1,1);
                     
-                    for (uint32 j = 0; j < level.height; j++)
-                    {
-                        for (uint32 i = 0; i < level.width; i++)
-                        {
-                            uint8 value = levelValueAtTile(&level,i,j);
-                            if (value < MAX_ENTITY_TYPE)
-                            {
-                                if(value == HEART)
-                                {
-                                    glBindVertexArray(heartVao);
-                                    glUniform3f(vertexDiffuseShader->posLoc, i+0.5f ,j+0.5f, 1.f);
-                                    glDrawElements(GL_TRIANGLES, 3*heartMesh.fCount, GL_UNSIGNED_INT, 0);
-                                }
-                                if(value == BOMB)
-                                {
-                                    glBindVertexArray(bombVao);
-                                    glUniform3f(vertexDiffuseShader->posLoc, i+0.5f ,j+0.5f, 1.f);
-                                    glDrawElements(GL_TRIANGLES, 3*bombMesh.fCount, GL_UNSIGNED_INT, 0);
-                                }
-                            }
-                        }
-                    }
+                    static real32 hearRot = 0;
+                    hearRot += dt;
+                    Mat3 rot;
+                    identity(rot);
+                    rotationZ(rot, hearRot);
+                    glUniformMatrix3fv(vertexDiffuseShader->rotLoc, 1, true, rot.data);
+                    
+                    drawEntitiesVertexColor(entities.heartPickups, entities.nHearts, Vec3(1.f,1.f,1.f),
+                                            vertexDiffuseShader->sizeLoc, vertexDiffuseShader->posLoc,
+                                            heartVao, 3*heartMesh.fCount);
+                    
+                    drawEntitiesVertexColor(entities.bombPickups, entities.nBombs, Vec3(1.f,1.f,1.f),
+                                            vertexDiffuseShader->sizeLoc, vertexDiffuseShader->posLoc,
+                                            bombVao, 3*bombMesh.fCount);
+                    
+                    drawEntitiesVertexColor(entities.mgPickups, entities.nMG, Vec3(2.f,2.f,2.f),
+                                            vertexDiffuseShader->sizeLoc, vertexDiffuseShader->posLoc,
+                                            machineGunVao, 3*machineGunMesh.fCount);
+                    
+                    drawEntitiesVertexColor(entities.sgPickups, entities.nSG, Vec3(2.f,2.f,2.f),
+                                            vertexDiffuseShader->sizeLoc, vertexDiffuseShader->posLoc,
+                                            shotGunVao, 3*shotGunMesh.fCount);
+
                     logOpenGLErrors();
 
                     
@@ -340,43 +329,39 @@ int main()
                     Mat3 playerOrientation;
                     identity(playerOrientation);
                     playerOrientation.data[0] = player.aimDir.x;
-                    playerOrientation.data[1] = player.aimDir.x;
-                    playerOrientation.data[2] = player.aimDir.x;
+                    playerOrientation.data[3] = player.aimDir.y;
+                    playerOrientation.data[1] = -player.aimDir.y;
                     playerOrientation.data[4] = player.aimDir.x;
                     
+                    glUniformMatrix3fv(texturedDiff->rotLoc, 1, true, playerOrientation.data);
+                    
                     glBindVertexArray(playerVao);
-        
-                    {
-                        glBindTexture(GL_TEXTURE_2D, marioTexture.texId);
-                        
-                        glUniform3f(texturedDiff->sizeLoc, 3, 3, 3);
-                        glUniform3f(texturedDiff->posLoc, player.position.x, player.position.y, 0);
-                        
-                        glDrawElements(GL_TRIANGLES, 3*playerMesh.fCount, GL_UNSIGNED_INT, 0);
-                    }
+    
+                    glBindTexture(GL_TEXTURE_2D, marioTexture.texId);
+                    
+                    glUniform3f(texturedDiff->sizeLoc, 3, 3, 3);
+                    glUniform3f(texturedDiff->posLoc, player.position.x, player.position.y, 0);
+                    
+                    glDrawElements(GL_TRIANGLES, 3*playerMesh.fCount, GL_UNSIGNED_INT, 0);
                     logOpenGLErrors();
                     
                     
                     // WALL
-                    glUniform3f(texturedDiff->sizeLoc,1,1,2.f);
-                    glBindTexture(GL_TEXTURE_2D, gameEntityTextures[WALL].texId);
+                    glBindTexture(GL_TEXTURE_2D, wallTexture.texId);
+                    
+                    Mat3 orientation;
+                    identity(orientation);
+                    
+                    glUniformMatrix3fv(texturedDiff->rotLoc, 1, false, orientation.data);
                     
                     glBindVertexArray(boxVao);
+                    glUniform3f(texturedDiff->sizeLoc,1,1,2.f);
                     
-                    for (uint32 j = 0; j < level.height; j++)
-                    {
-                        for (uint32 i = 0; i < level.width; i++)
-                        {
-                            uint8 value = levelValueAtTile(&level,i,j);
-                            if (value < MAX_ENTITY_TYPE)
-                            {
-                                if(value == WALL)
-                                {
-                                    glUniform3f(texturedDiff->posLoc, i+0.5f ,j+0.5f, 1.f);
-                                    glDrawElements(GL_TRIANGLES, 3*boxMesh.fCount, GL_UNSIGNED_INT, 0);
-                                }
-                            }
-                        }
+                    uint32 count = entities.nWalls;
+                    Entity* ent = entities.walls;
+                    for (uint32 i = 0; i < count; i++) {
+                        glUniform3f(texturedDiff->posLoc, ent[i].position.x, ent[i].position.y, 1.f);
+                        glDrawElements(GL_TRIANGLES, 3*boxMesh.fCount, GL_UNSIGNED_INT, 0);
                     }
                     logOpenGLErrors();
                     
@@ -408,8 +393,6 @@ int main()
                     // RENDER DEBUG CODE HERE
                 }
 #endif
-                
-                
                 
                 // Update the clock
                 endCounter = SDL_GetPerformanceCounter();

@@ -21,13 +21,13 @@ void rotationZ(Mat3& mat, real32 angle)
     real32 s = sin(angle);
     mat.data[0] = c;
     mat.data[1] = -s;
-    mat.data[2] = s;
-    mat.data[3] = 0.f;
+    mat.data[2] = 0.f;
+    mat.data[3] = s;
     mat.data[4] = c;
-    mat.data[3] = 0.f;
-    mat.data[3] = 0.f;
-    mat.data[3] = 0.f;
-    mat.data[3] = 1.f;
+    mat.data[5] = 0.f;
+    mat.data[6] = 0.f;
+    mat.data[7] = 0.f;
+    mat.data[8] = 1.f;
 }
 
 #endif

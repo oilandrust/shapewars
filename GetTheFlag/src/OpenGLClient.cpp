@@ -51,16 +51,6 @@ void loadTexture(Texture* tex, const char* filename)
     createTexture(tex);
 }
 
-bool createBufferObject(BufferObject* object) {
-    
-    glGenBuffers(1, &object->id);
-    glBindBuffer(GL_ARRAY_BUFFER, object->id);
-    glBufferData(GL_ARRAY_BUFFER, object->count * object->components * sizeof(real32), object->data, GL_STATIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
-    return true;
-}
-
 bool create2DVertexBuffer(Mesh2 *mesh)
 {
     
@@ -86,37 +76,6 @@ bool create2DVertexBuffer(Mesh2 *mesh)
             glBindBuffer(GL_ARRAY_BUFFER, 0);
         
         glBindVertexArray(0);
-    }
-    return !glGetError();
-}
-
-bool create3DVertexBuffer(Mesh3 *mesh)
-{
-    
-    //Create VBO
-    {
-        glGenBuffers(1, &mesh->vboId);
-        glBindBuffer(GL_ARRAY_BUFFER, mesh->vboId);
-        glBufferData(GL_ARRAY_BUFFER, 6 * 12 * sizeof(Vec3), mesh->positions, GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
-    
-    // Create the vao
-    {
-        glGenVertexArrays(1, &mesh->vaoId);
-        glBindVertexArray(mesh->vaoId);
-        
-        // Bind it to the vbo
-        glBindBuffer(GL_ARRAY_BUFFER, mesh->vboId);
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, (void*)(3 * 12 * sizeof(Vec3)));
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        
-        glBindVertexArray(0);
-        glDisableVertexAttribArray(0);
-        glDisableVertexAttribArray(1);
     }
     return !glGetError();
 }

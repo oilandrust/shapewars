@@ -3,16 +3,7 @@
 
 #include "GetTheFlag.h"
 #include "Vec2.h"
-
-enum TILE_TYPE {
-    WALL = 0,
-    MACHINE_GUN,
-    SHOTGUN,
-    BOMB,
-    HEART,
-    MAX_ENTITY_TYPE
-};
-
+#include "Entities.h"
 
 struct Level {
     uint8* tiles;
@@ -67,6 +58,6 @@ extern bool levelRectCollides(Level* level, const Rect& rect);
 bool levelRectCollides(Level* level, const Vec2& size, const Vec2& position, const Vec2& velocity, const real32 dt, Vec2& collisionPoint, Vec2& normal );
 
 // TODO: Free tiles memory
-bool loadLevel(Level* level, const char* filename);
+bool loadLevel(Level* level, Entities* entities, const char* filename);
 
 #endif

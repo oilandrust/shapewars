@@ -31,13 +31,6 @@ struct Shader {
     GLint rotLoc;
 };
 
-struct BufferObject {
-    void* data;
-    uint32 count;
-    uint32 components;
-    GLuint id;
-    
-};
 
 struct Mesh2 {
     GLuint vaoId;
@@ -46,12 +39,6 @@ struct Mesh2 {
     Vec2* positions;
 };
 
-struct Mesh3 {
-    GLuint vaoId;
-    GLuint vboId;
-    
-    Vec3* positions;
-};
 
 struct Texture {
     GLuint texId;
@@ -71,8 +58,6 @@ bool createTexture(Texture* texture);
 bool createShaderProgram(Shader* shader, const char* vsShaderFilename, const char* fsShaderFilename);
 
 bool create2DVertexBuffer(Mesh2 *mesh);
-
-bool create3DVertexBuffer(Mesh3 *mesh);
 
 GLuint create3DVertexArray(Mesh3D *mesh);
 

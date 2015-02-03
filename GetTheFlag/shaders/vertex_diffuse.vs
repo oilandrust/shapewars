@@ -14,12 +14,15 @@ uniform mat4 view;
 
 // Position and size of the Object
 uniform vec3 entity_position;
+uniform mat3 entity_rotation;
 uniform vec3 entity_size;
 
 void main() 
 {
-	norm = normal;
+	norm = entity_rotation * normal;
 	diffuse = color;
-	gl_Position = projection * view * vec4(entity_size * position + entity_position, 1); 
+	vec3 pos = entity_size * position;
+	pos = entity_rotation * pos + entity_position;
+	gl_Position = projection * view * vec4(pos, 1); 
 
 }
