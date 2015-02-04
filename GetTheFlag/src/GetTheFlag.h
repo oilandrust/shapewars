@@ -26,6 +26,12 @@
     #   define ASSERT(condition, message) do { } while (false)
 #endif
 
+#ifdef DEBUG
+    #define LOG(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#else
+    #define LOG(fmt, ...)
+#endif
+
 typedef char int8;
 typedef unsigned char uint8;
 typedef short int16;

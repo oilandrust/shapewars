@@ -231,3 +231,33 @@ void* loadObjMesh(Mesh3D* mesh, void* memoryPool, const char* filename, bool per
     
 }
 
+
+void* load3DSMesh(Mesh3D* mesh, void* memoryPool, const char* filename)
+{
+    FILE* file = fopen(filename, "r");
+    if(file)
+    {
+        void* end = memoryPool;
+        
+        Vec3* p = 0;
+        Vec3* n = 0;
+        Vec3* c = 0;
+        Vec2* uv = 0;
+        uint32* i = 0;
+        
+        uint32 vCount = 0;
+        uint32 fCount = 0;
+        uint32 nCount = 0;
+        uint32 uCount = 0;
+        
+        
+
+        fclose(file);
+        
+    }
+    else
+    {
+        ASSERT(false, "couldn't open mesh %s");
+        return memoryPool;
+    }
+}

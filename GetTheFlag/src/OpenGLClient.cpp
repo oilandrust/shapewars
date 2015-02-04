@@ -6,7 +6,7 @@ bool createTexture(Texture* texture)
 {
     glGenTextures(1, &texture->texId);
     glBindTexture(GL_TEXTURE_2D, texture->texId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+   
     glTexImage2D(GL_TEXTURE_2D,
                  0,
                  GL_RGBA,
@@ -14,6 +14,12 @@ bool createTexture(Texture* texture)
                  GL_RGBA,
                  GL_UNSIGNED_INT_8_8_8_8,
                  texture->data);
+    
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     
     glBindTexture(GL_TEXTURE_2D, 0);
     
@@ -170,27 +176,35 @@ GLuint createShader(GLenum shaderType, const char* filename)
     FILE *shaderFile;
     int i = 0;
     
+    GLuint shader = 0;
     shaderFile = fopen(filename, "r");
-    while(fscanf(shaderFile,"%c",&inChar) > 0)
+    if(shaderFile)
     {
-        shaderSource[i++] = inChar;
+        while(fscanf(shaderFile,"%c",&inChar) > 0)
+        {
+            shaderSource[i++] = inChar;
+        }
+        shaderSource[i - 1] = '\0';
+        fclose(shaderFile);
+        
+        shader = glCreateShader(shaderType);
+        const char* source = shaderSource;
+        glShaderSource(shader, 1, &source, 0);
+        glCompileShader(shader);
+        
+        GLint success = GL_FALSE;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if(success != GL_TRUE)
+        {
+            printf("Unable to compile vertex shader %d!\n", shader);
+            puts(shaderSource);
+            printShaderLog(shader);
+            success = false;
+        }
     }
-    shaderSource[i - 1] = '\0';
-    fclose(shaderFile);
-    
-    GLuint shader = glCreateShader(shaderType);
-    const char* source = shaderSource;
-    glShaderSource(shader, 1, &source, 0);
-    glCompileShader(shader);
-    
-    GLint success = GL_FALSE;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if(success != GL_TRUE)
+    else
     {
-        printf("Unable to compile vertex shader %d!\n", shader);
-        puts(shaderSource);
-        printShaderLog(shader);
-        success = false;
+        printf("Unable to open shader %s\n",filename);
     }
     return shader;
 }

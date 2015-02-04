@@ -17,6 +17,7 @@
 
 //#define RENDER_DEBUG
 #define DEBUG_GAME
+//#define DEVENV
 
 
 // TODO: Free memory
@@ -27,7 +28,9 @@
 // TODO: Create shader, VBuffer
 
 
-void drawEntitiesVertexColor(Entity* entities, uint32 count, Vec3 size, GLuint sizeLoc, GLuint posLoc , GLuint vao, uint32 indexCount)
+void drawEntitiesVertexColor(Entity* entities, uint32 count, Vec3 size,
+                             GLuint sizeLoc, GLuint posLoc ,
+                             GLuint vao, uint32 indexCount)
 {
     glBindVertexArray(vao);
     glUniform3fv(sizeLoc,1,&size.x);
@@ -37,12 +40,46 @@ void drawEntitiesVertexColor(Entity* entities, uint32 count, Vec3 size, GLuint s
     }
 }
 
-
+#include <unistd.h>
+#define MAXPATHLEN 1024
+#include <mach-o/dyld.h>
+#include <cerrno>
 
 int main()
 {
+
+#ifndef DEVENV
+    // Change the current directory
+    // Because on mac the current directory might be different than the executable directory
+    {
+        char exePath[MAXPATHLEN];
+        char path[MAXPATHLEN];
+        uint32_t size = sizeof(path);
+        if(_NSGetExecutablePath(path,&size) == 0)
+        {
+            realpath(path, exePath);
+            LOG("Executable path: %s\n", exePath);
+        }
+        
+        char exeDirectory[MAXPATHLEN];
+        memcpy(exeDirectory, exePath, strlen(exePath));
+        char* lastSlash = strrchr(exeDirectory, '/');
+        *lastSlash = '\0';
+        
+        char cwd[1024];
+        getcwd(cwd, sizeof(cwd));
+        LOG("Current working directory: %s\n", cwd);
+  
+        LOG("Setting working directory: %s\n",exeDirectory);
+        if(chdir(exeDirectory) == -1)
+        {
+            LOG("chdir failed to %s\n",exeDirectory);
+            LOG("errno %d\n",errno);
+        }
+    }
+#endif
     
-	if (SDL_Init(SDL_INIT_EVERYTHING) == 0)
+  	if (SDL_Init(SDL_INIT_EVERYTHING) == 0)
     {
         uint32 ScreenWidth = 2*640;
         uint32 ScreenHeight = 2*480;
@@ -80,6 +117,7 @@ int main()
             {
                 printf( "Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError() );
             }
+
             
             // Initialize the rendering resources
             Renderer renderer;
@@ -127,7 +165,11 @@ int main()
             Mesh3D playerMesh;
             top = loadObjMesh(&playerMesh, (void*)top, "data/mario.obj");
             GLuint playerVao = create3DVertexArray(&playerMesh);
-            
+
+//            Mesh3D playerMeshDS;
+//            top = load3DSMesh(&playerMeshDS, (void*)top, "data/mario.3ds");
+//            GLuint playerVaoDS = create3DVertexArray(&playerMeshDS);
+//            
             Texture marioTexture;
             loadTexture(&marioTexture, "data/mario_main.png");
             
@@ -223,7 +265,7 @@ int main()
                     
                     real32 mat[16];
                     real32 aspect =  (real32)ScreenWidth/(real32)ScreenHeight;
-                    perspective(mat, 50.f, aspect, 1.f, 20.f);
+                    perspective(mat, 45.f, aspect, 1.f, 20.f);
                     
                     // Set the view Matrix
                     Vec3 cameraPosition(0.3*level.width, -0.6*level.height, 20);

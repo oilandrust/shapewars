@@ -18,6 +18,8 @@ struct Mesh3D {
 
 void* loadObjMesh(Mesh3D* mesh, void* memoryPool, const char* filename, bool perVertexColors = false);
 
+void* load3DSMesh(Mesh3D* mesh, void* memoryPool, const char* filename);
+
 void* createCube(Mesh3D* mesh, void* memoryPool);
 
 #endif
