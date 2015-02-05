@@ -9,7 +9,7 @@ void initializeBullets(BulletManager* bulletManager)
     bulletManager->bulletSpeed = 30.0f;
     bulletManager->bulletSize = Vec2(0.43f);
     
-    loadTexture(&bulletManager->bulletTexture, "data/bullet.png");
+    loadTexture(&bulletManager->bulletTexture, "data/bullet.bmp");
 }
 uint32 createBullet(BulletManager* manager)
 {

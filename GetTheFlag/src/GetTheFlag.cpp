@@ -17,7 +17,7 @@
 
 //#define RENDER_DEBUG
 #define DEBUG_GAME
-//#define DEVENV
+#define DEVENV
 
 
 // TODO: Free memory
@@ -81,8 +81,8 @@ int main()
     
   	if (SDL_Init(SDL_INIT_EVERYTHING) == 0)
     {
-        uint32 ScreenWidth = 2*640;
-        uint32 ScreenHeight = 2*480;
+        uint32 ScreenWidth = 640;
+        uint32 ScreenHeight = 480;
         
         SDL_Window* window = SDL_CreateWindow("Get The Flag", 0, 0, ScreenWidth, ScreenHeight, SDL_WINDOW_OPENGL);
         SDL_Surface* window_surface = 0;
@@ -94,7 +94,7 @@ int main()
         if(window)
         {
             window_surface = SDL_GetWindowSurface(window);
-            ASSERT(window_surface, SDL_GetError());
+            ASSERT(window_surface, "SDL_error %s", SDL_GetError());
             
             // Initialze OpenGL 3.1
             SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -104,12 +104,12 @@ int main()
             //Create context
             SDL_GLContext glContext = SDL_GL_CreateContext(window);
             ASSERT(!glGetError(), "Error Creating Contex");
-            ASSERT(glContext, "OpenGL context could not be created! SDL Error: %s\n" + std::string(SDL_GetError()));
+            ASSERT(glContext, "OpenGL context could not be created! SDL Error: %s\n", SDL_GetError());
             
             //Initialize GLEW
             glewExperimental = GL_TRUE;
             GLenum result = glewInit();
-            ASSERT(result == GLEW_OK, "Error initializing GLEW!" + std::string((const char*)glewGetErrorString(result)));
+            ASSERT(result == GLEW_OK, "Error initializing GLEW! %s", glewGetErrorString(result));
             glGetError();
             
             //Use Vsync
@@ -128,18 +128,18 @@ int main()
             Level level;
             if(!loadLevel(&level, &entities, "data/lvl2.bmp"))
             {
-                printf("loadLevel: %s\n", IMG_GetError());
-                ASSERT(false, IMG_GetError());
+                printf("loadLevel: %s\n", SDL_GetError());
+                ASSERT(false, "%s", SDL_GetError());
             }
 
             // Load background bitmap
             Texture groungTexture;
-            loadTexture(&groungTexture, "data/bg.png");
+            loadTexture(&groungTexture, "data/bg.bmp");
             
             Player player;
             initializePlayer(&player);
             
-
+            // TODO: Turn this into a proper memory pool
             Vec3 meshData[50*4096];
             
             Mesh3D boxMesh;
@@ -166,15 +166,12 @@ int main()
             top = loadObjMesh(&playerMesh, (void*)top, "data/mario.obj");
             GLuint playerVao = create3DVertexArray(&playerMesh);
 
-//            Mesh3D playerMeshDS;
-//            top = load3DSMesh(&playerMeshDS, (void*)top, "data/mario.3ds");
-//            GLuint playerVaoDS = create3DVertexArray(&playerMeshDS);
-//            
+            
             Texture marioTexture;
-            loadTexture(&marioTexture, "data/mario_main.png");
+            loadTexture(&marioTexture, "data/mario_main.bmp");
             
             Texture wallTexture;
-            loadTexture(&wallTexture, "data/brick.png");
+            loadTexture(&wallTexture, "data/brick.bmp");
             
             BulletManager bulletManager;
             initializeBullets(&bulletManager);
@@ -247,6 +244,9 @@ int main()
                         glDepthFunc(GL_LEQUAL);
                         glDepthRange(0.0f, 1.0f);
                         
+                        glCullFace(GL_BACK);
+                        glEnable(GL_CULL_FACE);
+                        
                         
                         // Set Global render states
                         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -265,11 +265,14 @@ int main()
                     
                     real32 mat[16];
                     real32 aspect =  (real32)ScreenWidth/(real32)ScreenHeight;
-                    perspective(mat, 45.f, aspect, 1.f, 20.f);
+                    perspective(mat, 40.f, aspect, 1.f, 20.f);
                     
                     // Set the view Matrix
-                    Vec3 cameraPosition(0.3*level.width, -0.6*level.height, 20);
-                    Vec3 cameraTarget(0.4f*level.width, 0.2f*level.height, 0);
+                    Vec3 staticCameraPosition(0.3*level.width, -0.6*level.height, 20);
+                    Vec3 staticCameraTarget(0.45f*level.width, 0.3f*level.height, 0);
+                    
+                    Vec3 cameraTarget = staticCameraTarget;
+                    Vec3 cameraPosition = staticCameraPosition;
                     
                     Mat4 viewMatrix;
                     identity(viewMatrix);

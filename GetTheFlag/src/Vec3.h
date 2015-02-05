@@ -2,6 +2,7 @@
 #define VEC3H
 
 #include "GetTheFlag.h"
+#include "Vec2.h"
 
 struct Vec3 {
     real32 x;
@@ -10,6 +11,7 @@ struct Vec3 {
     
     Vec3(real32 x_, real32 y_, real32 z_):x(x_),y(y_),z(z_){}
     Vec3(real32 x_):x(x_),y(x_),z(x_){}
+    Vec3(const Vec2& xy, real32 z_):x(xy.x),y(xy.y),z(z_){}
     Vec3(){}
 };
 

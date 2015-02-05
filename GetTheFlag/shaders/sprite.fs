@@ -7,5 +7,5 @@ uniform sampler2D sprite_tex;
 
 void main() 
 {
-	fragment = texture(sprite_tex, texture_coord).gbar;
+	fragment = texture(sprite_tex, texture_coord);
 }

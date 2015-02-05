@@ -20,7 +20,6 @@ add_executable(GetTheFlag
 	src/Mesh.h
 )
 target_link_libraries(GetTheFlag ${SDL2_LIBRARY})
-target_link_libraries(GetTheFlag ${SDL2IMAGE_LIBRARY})
 target_link_libraries(GetTheFlag ${GLEW_LIBRARY})
 target_link_libraries(GetTheFlag ${OPENGL_LIBRARIES})
 

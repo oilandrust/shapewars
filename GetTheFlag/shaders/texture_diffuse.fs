@@ -12,7 +12,7 @@ const vec3 lightDir = normalize(vec3(0.5,-0.7,1));
 void main() 
 {
 	// Diffuse Lighting
-	vec4 diff = texture(diffuse, vec2(tex_coords.x,1-tex_coords.y)).gbar;
+	vec4 diff = texture(diffuse, vec2(tex_coords.x,1-tex_coords.y));
 	float nDotL = max(0.f,dot(norm,lightDir));
 	vec4 color = nDotL * diff + 0.4 * diff;
 

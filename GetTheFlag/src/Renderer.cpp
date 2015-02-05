@@ -8,18 +8,18 @@ void intializeRendererRessources(Renderer* renderer)
     // 2 triangles -> 6 vertices + 6 tcs
     //uint32 rectIndices[12] = {0,1,2,0,2,3};
     renderer->rectVertices[0] = Vec2(-.5f,-.5f);
-    renderer->rectVertices[1] = Vec2(-.5f,.5f);
+    renderer->rectVertices[1] = Vec2(.5f,-.5f);
     renderer->rectVertices[2] = Vec2(.5f,.5f);
     renderer->rectVertices[3] = Vec2(-.5f,-.5f);
     renderer->rectVertices[4] = Vec2(.5f,.5f);
-    renderer->rectVertices[5] = Vec2(.5f,-.5f);
+    renderer->rectVertices[5] = Vec2(-.5f,.5f);
     
     renderer->rectVertices[6] = Vec2(.0f,0.f);
-    renderer->rectVertices[7] = Vec2(0.f,1.f);
+    renderer->rectVertices[7] = Vec2(1.f,0.f);
     renderer->rectVertices[8] = Vec2(1.f,1.f);
     renderer->rectVertices[9] = Vec2(0.f,0.f);
     renderer->rectVertices[10] = Vec2(1.f,1.f);
-    renderer->rectVertices[11] = Vec2(1.f,0.f);
+    renderer->rectVertices[11] = Vec2(0.f,1.f);
     
     renderer->spriteMesh.positions = renderer->rectVertices;
     //spriteMesh.indices = rectIndices;

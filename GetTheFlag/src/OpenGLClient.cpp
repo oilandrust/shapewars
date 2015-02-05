@@ -29,19 +29,11 @@ bool createTexture(Texture* texture)
 
 SDL_Surface* loadBitmap(const char* filename)
 {
-    SDL_RWops *rwop;
-    rwop = SDL_RWFromFile(filename, "rb");
-    if(!rwop)
-    {
-        printf("SDL_RWFromFile: %s\n", IMG_GetError());
-        ASSERT(false, IMG_GetError());
-    }
-    SDL_Surface* bitmap = IMG_LoadPNG_RW(rwop);
+    SDL_Surface* bitmap = SDL_LoadBMP(filename);
     if(!bitmap)
     {
-        printf("IMG_LoadPNG_RW: %s\n", IMG_GetError());
+        printf("SDL_LoadBMP: %s\n", SDL_GetError());
         printf("Error loading: %s\n", filename);
-        ASSERT(false, IMG_GetError());
     }
     return bitmap;
 }
