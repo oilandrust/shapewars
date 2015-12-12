@@ -14,10 +14,16 @@ add_executable(GetTheFlag
 	src/OpenGLClient.cpp
 	src/Entities.cpp
 	src/Entities.h
+	src/Animation.cpp
+	src/Animation.h
 	src/Renderer.cpp
 	src/Renderer.h
 	src/Mesh.cpp
 	src/Mesh.h
+    src/NavMeshGen.cpp
+    src/NavMeshGen.h
+
+	src/stb_image.cpp
 )
 target_link_libraries(GetTheFlag ${SDL2_LIBRARY})
 target_link_libraries(GetTheFlag ${GLEW_LIBRARY})

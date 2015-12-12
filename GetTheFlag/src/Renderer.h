@@ -6,16 +6,13 @@
 #include "OpenGLClient.h"
 
 struct Renderer {
-    Vec2 rectVertices[12];
-    Mesh2 spriteMesh;
-    
-    Shader spriteShader;
-    Shader flatTextureShader;
-    Shader vertexDiffuseShader;
-    Shader textureDiffuseShader;
+    Shader flatDiffShader;
+    Shader texDiffShader;
 };
 
 void intializeRendererRessources(Renderer* renderer);
+
+void rendererBeginFrame(Renderer* renderer);
 
 void reloadShaders(Renderer* renderer);
 

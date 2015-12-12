@@ -10,6 +10,7 @@ struct Mesh3D {
     Vec3* normals;
     Vec3* colors;
     Vec2* uvs;
+    
     uint32* indices;
     
     uint32 vCount;
@@ -55,6 +56,11 @@ void* loadObjMesh(Mesh3D* mesh, void* memoryPool, const char* filename, bool per
 
 void* load3DSMesh(Mesh3D* mesh, void* memoryPool, const char* filename);
 
-void* createCube(Mesh3D* mesh, void* memoryPool);
+void* loadFBXMesh(Mesh3D* mesh, void* memoryPool, const char* filename);
+
+void createCube(MemoryArena* arena, Mesh3D* mesh);
+
+void createPlane(MemoryArena* arena, Mesh3D* mesh);
+
 
 #endif

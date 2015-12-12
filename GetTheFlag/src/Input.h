@@ -18,13 +18,19 @@ enum KEYS {
     FIRE2,
     QUIT,
     ESCAPE,
-    RELOAD,
+
+    DEBUG_RELOAD_SHADERS,
+    DEBUG_SHOW_DISTANCE_FIELD,
+    DEBUG_SHOW_REGIONS,
     
     NUM_KEYS
 };
 
 struct Input {
     KeyState keyStates[NUM_KEYS];
+    
+    int32 mouseX;
+    int32 mouseY;
 };
 
 

@@ -24,11 +24,13 @@ endif()
 # Look up SDL2 and add the include directory to our include path
 find_package(SDL2 REQUIRED)
 include_directories(${SDL2_INCLUDE_DIR})
+
 find_package(GLEW REQUIRED)
 include_directories(${GLEW_INCLUDE_DIR})
+
 find_package(OpenGL REQUIRED)
 include_directories(${OPENGL_INCLUDE_DIR})
 
+include_directories(stb)
 
 add_subdirectory(GetTheFlag)
-add_subdirectory(Sandbox)

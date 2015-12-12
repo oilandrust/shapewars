@@ -18,7 +18,8 @@ void processInput(Input* input)
             {
                 case SDL_MOUSEMOTION:
                 {
-                    
+                    input->mouseX  = event.motion.x;
+                    input->mouseY  = event.motion.y;
                 }break;
                     
                 case SDL_KEYUP:
@@ -41,7 +42,15 @@ void processInput(Input* input)
                     }
                     if(event.key.keysym.sym == SDLK_r)
                     {
-                        input->keyStates[RELOAD].held = false;
+                        input->keyStates[DEBUG_RELOAD_SHADERS].held = false;
+                    }
+                    if(event.key.keysym.sym == SDLK_g)
+                    {
+                        input->keyStates[DEBUG_SHOW_DISTANCE_FIELD].held = false;
+                    }
+                    if(event.key.keysym.sym == SDLK_i)
+                    {
+                        input->keyStates[DEBUG_SHOW_REGIONS].held = false;
                     }
                 }break;
                     
@@ -77,10 +86,25 @@ void processInput(Input* input)
                         input->keyStates[FIRE1].clicked = true;
                         input->keyStates[FIRE1].held = true;
                     }
+                    if(event.key.keysym.sym == SDLK_b)
+                    {
+                        input->keyStates[FIRE2].clicked = true;
+                        input->keyStates[FIRE2].held = true;
+                    }
                     if(event.key.keysym.sym == SDLK_r)
                     {
-                        input->keyStates[RELOAD].clicked = true;
-                        input->keyStates[RELOAD].held = true;
+                        input->keyStates[DEBUG_RELOAD_SHADERS].clicked = true;
+                        input->keyStates[DEBUG_RELOAD_SHADERS].held = true;
+                    }
+                    if(event.key.keysym.sym == SDLK_d)
+                    {
+                        input->keyStates[DEBUG_SHOW_DISTANCE_FIELD].clicked = true;
+                        input->keyStates[DEBUG_SHOW_DISTANCE_FIELD].held = true;
+                    }
+                    if(event.key.keysym.sym == SDLK_i)
+                    {
+                        input->keyStates[DEBUG_SHOW_REGIONS].clicked = true;
+                        input->keyStates[DEBUG_SHOW_REGIONS].held = true;
                     }
                 }break;
                     

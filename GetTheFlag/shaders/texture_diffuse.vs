@@ -3,12 +3,12 @@
 // Object normal and position in Object space
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 normal;
-layout(location = 3) in vec2 uvs;
+layout(location = 3) in vec2 uv;
 
 // Normal in Object space
 smooth out vec3 norm;
 smooth out vec2 tex_coords;
- 
+
 uniform mat4 projection;
 uniform mat4 view;
 
@@ -18,12 +18,12 @@ uniform mat3 entity_rotation;
 uniform vec3 entity_size;
 
 
-void main() 
+void main()
 {
 	norm = entity_rotation * normal;
-	tex_coords = uvs;
+	tex_coords = uv;
 	vec3 pos = entity_size * position;
 	pos = entity_rotation * pos + entity_position;
-	gl_Position = projection * view * vec4(pos, 1); 
+	gl_Position = projection * view * vec4(pos, 1);
 
 }

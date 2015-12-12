@@ -30,3 +30,6 @@ ompiled Object files
 build/
 cmake/
 Sandbox/
+dist/
+Tools/
+glm/
