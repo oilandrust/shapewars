@@ -122,8 +122,16 @@ inline T* pushArray(MemoryArena* arena, size_t count) {
 }
 
 template<class T>
+inline T* pushArrayZeroed(MemoryArena* arena, size_t count) {
+    T* ptr = (T*)pushSize(arena, count*sizeof(T));
+    memset(ptr, 0, sizeof(T)*count);
+    return ptr;
+}
+
+template<class T>
 inline void popArray(MemoryArena* arena, size_t count) {
     popSize(arena, count*sizeof(T));
 }
+
 
 #endif

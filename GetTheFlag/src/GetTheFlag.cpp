@@ -219,6 +219,13 @@ int main()
         lineVaos[i] = create3DVertexArray(&contourMeshes[i]);
     }
     
+    Mesh3D* triangulatedCountours = pushArray<Mesh3D>(&memoryArena, contour.count);
+    triangulateContours(&memoryArena, &contour, triangulatedCountours);
+    GLuint* contourMeshVaos = pushArray<GLuint>(&memoryArena, contour.count);
+    for(uint32 i = 0; i < contour.count; i++) {
+        contourMeshVaos[i] = create3DIndexedVertexArray(&triangulatedCountours[i]);
+    }
+    
     bool DebugShowDistanceField = false;
     bool DebugShowRegions = false;
     
@@ -356,8 +363,15 @@ int main()
                 glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
                 glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
                 
-                glDrawArrays(GL_LINE_STRIP, 0, contour.contours[i].count);
+               //glDrawArrays(GL_LINE_STRIP, 0, contour.contours[i].count);
             }
+            glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+            for(uint32 i = 0; i < contour.count; i++) {
+                glBindVertexArray(contourMeshVaos[i]);
+                glDrawElements(GL_TRIANGLES, 3*triangulatedCountours[i].vCount, GL_UNSIGNED_INT, 0);
+            }
+            glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+
             // end lines
             
             glBindVertexArray(boxVao);

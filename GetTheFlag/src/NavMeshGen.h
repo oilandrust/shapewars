@@ -29,6 +29,8 @@ struct RegionIdMap {
     Texture texture;
 };
 
+void genRegions(MemoryArena* arena, DistanceField* distanceFiend, RegionIdMap* regions);
+
 struct Contour {
     Vec3* vertices;
     uint32 count;
@@ -39,9 +41,8 @@ struct Contours {
     uint32 count;
 };
 
-void genRegions(MemoryArena* arena, DistanceField* distanceFiend, RegionIdMap* regions);
-
 void genContours(MemoryArena* arena, RegionIdMap* regions, Contours* contour);
 
+void triangulateContours(MemoryArena* arena, Contours* contours, Mesh3D* meshes);
 
 #endif /* NavMeshGen_h */

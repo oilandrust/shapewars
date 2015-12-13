@@ -400,9 +400,9 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, Contours* contours) {
             uint32 count = 0;
             Vec3* verts = pushArray<Vec3>(arena, w*h);
 
-            // We visit in order from top-left to bottom so the direction must be RIGHT.
-            Dir fDir = RIGHT;
-            Dir lDir = (Dir)((fDir-1)%4);
+            // We visit in order from top-left to bottom so the direction must be DOWN for ccw order.
+            Dir fDir = DOWN;
+            Dir rDir = (Dir)((fDir+1)%4);
             
             // First vertex.
             verts[count++] = Vec3(i, h-j, 0.5);
@@ -424,30 +424,31 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, Contours* contours) {
                         default: break;
                     }
                     edgeForward = isEdge(ids, w, h, x, y, fDir);
-                    edgeLeft = isEdge(ids, w, h, x, y, lDir);
+                    edgeLeft = isEdge(ids, w, h, x, y, rDir);
                 } while (!edgeForward && edgeLeft);
                 
                 // Add a vertex.
-                ASSERT(count < 50);
+                ASSERT(count < w*h);
                 Vec3 cellCenter = Vec3(x+0.5, h-y-0.5, 0.5);
                 Vec3 offset(.0f,.0f,.0f);
                 
                 switch (fDir) {
-                    case UP: offset = edgeForward?Vec3(-.5f, .5f, .0f):Vec3(-.5f, -.5f, .0f); break;
-                    case RIGHT: offset = edgeForward?Vec3(.5f, .5f, .0f):Vec3(-.5f, .5f, .0f); break;
-                    case DOWN: offset = edgeForward?Vec3(.5f, -.5f, .0f):Vec3(.5f, .5f, .0f); break;
-                    case LEFT: offset = edgeForward?Vec3(-.5f, -.5f, .0f):Vec3(.5f, -.5f, .0f); break;
+                    case UP: offset = edgeForward?Vec3(.5f, .5f, .0f):Vec3(.5f, -.5f, .0f); break;
+                    case RIGHT: offset = edgeForward?Vec3(.5f, -.5f, .0f):Vec3(-.5f, -.5f, .0f); break;
+                    case DOWN: offset = edgeForward?Vec3(-.5f, -.5f, .0f):Vec3(-.5f, .5f, .0f); break;
+                    case LEFT: offset = edgeForward?Vec3(-.5f, .5f, .0f):Vec3(.5f, .5f, .0f); break;
                 }
                 
-                verts[count++] = cellCenter + offset;
-                
+                if(x != xb || y != yb) {
+                    verts[count++] = cellCenter + offset;
+                }
                 // Turn
                 if(isEdge(ids, w, h, x, y, fDir)) {
-                    lDir = fDir;
-                    fDir = (Dir)((fDir+1)%4);
+                    rDir = fDir;
+                    fDir = fDir == 0?LEFT:(Dir)((fDir-1)%4);
                 } else {
-                    fDir = lDir;
-                    lDir = fDir == 0?LEFT:(Dir)((fDir-1)%4);
+                    fDir = rDir;
+                    rDir = (Dir)((fDir+1)%4);
                 }
             } while(x != xb || y != yb);
             
@@ -460,3 +461,153 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, Contours* contours) {
         }
     }
 }
+
+uint32 nextFree(bool* excluded, uint32 count, uint32 start) {
+    uint32 i = start;
+    while(excluded[i]) i = (i+1)%count;
+    return i;
+}
+
+bool isCCW(const Vec3& p0, const Vec3& p1, const Vec3& p2) {
+    return cross(p1-p0, p2-p1).z > 0;
+}
+
+void triangulateContours(MemoryArena* arena, Contours* contours, Mesh3D* meshes) {
+    
+    uint32 totalVCount = 0;
+    uint32 totalFCount = 0;
+    for(uint32 c = 0; c < contours->count; c++) {
+        totalVCount += contours->contours[c].count;
+        totalFCount += contours->contours[c].count - 2;
+    }
+    
+    uint32* gindices = pushArray<uint32>(arena, 3*totalFCount);
+    Vec3* gvertices = contours->contours[0].vertices;
+    uint32* indices = gindices;
+    
+    uint32 cVCount = 0;
+    uint32 cFCount = 0;
+    
+    for(uint32 c = 0; c < contours->count; c++) {
+        Mesh3D* mesh = &meshes[c];
+        memset(mesh, 0, sizeof(Mesh3D));
+        
+        Contour* contour = &contours->contours[c];
+        Vec3* verts = contour->vertices;
+        ASSERT(verts == gvertices + cVCount);
+
+        uint32 vCount = contour->count;
+        uint32 fCount = vCount - 2;
+        
+        mesh->positions = verts;
+        mesh->indices = indices;
+        mesh->vCount = vCount;
+        mesh->fCount = fCount;
+        
+        
+        cVCount += vCount;
+        cFCount += fCount;
+        
+        bool* excluded = pushArrayZeroed<bool>(arena, vCount);
+        
+        for(uint32 f = 0; f < fCount; f++) {
+            
+            real32 minEdgeLength = 1000000;
+            uint32 mi0, mi1, mi2;
+            uint32 l = 0;
+            
+            for(uint32 i = 0; i < vCount-f; i++) {
+                uint32 i0 = nextFree(excluded, vCount, l);
+                uint32 i1 = nextFree(excluded, vCount, (i0+1)%vCount);
+                uint32 i2 = nextFree(excluded, vCount, (i1+1)%vCount);
+                
+                if(isCCW(verts[i0], verts[i1], verts[i2])) {
+                    real32 eLength = length(verts[i2]-verts[i0]);
+                    if(eLength < minEdgeLength) {
+                        minEdgeLength = eLength;
+                        mi0 = i0;
+                        mi1 = i1;
+                        mi2 = i2;
+                    }
+                }
+                l = i1;
+            }
+            excluded[mi1] = true;
+            indices[3*f] = mi0;
+            indices[3*f+1] = mi1;
+            indices[3*f+2] = mi2;
+        }
+        indices += 2*3*fCount;
+        popArray<bool>(arena, vCount);
+    }
+}
+
+//void triangulateContours(MemoryArena* arena, Contours* contours, Mesh3D* meshes) {
+//    
+//    uint32 totalVCount = 0;
+//    uint32 totalFCount = 0;
+//    for(uint32 c = 0; c < contours->count; c++) {
+//        totalVCount += contours->contours[c].count;
+//        totalFCount += contours->contours[c].count - 2;
+//    }
+//    
+//    uint32* gindices = pushArray<uint32>(arena, 3*totalFCount);
+//    Vec3* gvertices = contours->contours[0].vertices;
+//    uint32* indices = gindices;
+//    
+//    uint32 iOffset = 0;
+//    
+//    uint32 cVCount = 0;
+//    uint32 cFCount = 0;
+//    
+//    for(uint32 c = 0; c < 3; c++) {
+//        Contour* contour = &contours->contours[c];
+//        Vec3* verts = contour->vertices;
+//        ASSERT(verts == gvertices + cVCount);
+//        
+//        uint32 vCount = contour->count;
+//        uint32 fCount = vCount - 2;
+//        
+//        cVCount += vCount;
+//        cFCount += fCount;
+//        
+//        bool* excluded = pushArrayZeroed<bool>(arena, vCount);
+//        
+//        for(uint32 f = 0; f < fCount; f++) {
+//            
+//            real32 minEdgeLength = 1000000;
+//            uint32 mi0, mi1, mi2;
+//            uint32 l = 0;
+//            
+//            for(uint32 i = 0; i < vCount-f; i++) {
+//                uint32 i0 = nextFree(excluded, vCount, l);
+//                uint32 i1 = nextFree(excluded, vCount, i0+1);
+//                uint32 i2 = nextFree(excluded, vCount, i1+1);
+//                
+//                if(isCCW(verts[i0], verts[i1], verts[i2])) {
+//                    real32 eLength = length(verts[i2]-verts[i0]);
+//                    if(eLength < minEdgeLength) {
+//                        minEdgeLength = eLength;
+//                        mi0 = i0;
+//                        mi1 = i1;
+//                        mi2 = i2;
+//                    }
+//                }
+//                l = i1;
+//            }
+//            excluded[mi1] = true;
+//            indices[3*f] = mi0 + iOffset;
+//            indices[3*f+1] = mi1 + iOffset;
+//            indices[3*f+2] = mi2 + iOffset;
+//        }
+//        iOffset += vCount;
+//        indices += 3*fCount;
+//        popArray<bool>(arena, vCount);
+//    }
+//    
+//    memset(mesh, 0, sizeof(Mesh3D));
+//    mesh->positions = gvertices;
+//    mesh->indices = gindices;
+//    mesh->vCount = cVCount;
+//    mesh->fCount = cFCount;
+//}
