@@ -207,15 +207,11 @@ int main()
     ContourSet contours;
     genContours(&memoryArena, &regionIds, &contours);
     
-    Mesh3D* contourMeshes = pushArray<Mesh3D>(&memoryArena, contours.count);
+    Mesh3D* contourMeshes = pushArrayZeroed<Mesh3D>(&memoryArena, contours.count);
     GLuint* lineVaos = pushArray<GLuint>(&memoryArena, contours.count);
     for(uint32 i = 0; i < contours.count; i++) {
         contourMeshes[i].vCount = contours.contours[i].count;
         contourMeshes[i].positions = contours.contours[i].vertices;
-        contourMeshes[i].normals = 0;
-        contourMeshes[i].indices = 0;
-        contourMeshes[i].uvs = 0;
-        contourMeshes[i].colors = 0;
         lineVaos[i] = create3DVertexArray(&contourMeshes[i]);
     }
     
@@ -228,8 +224,11 @@ int main()
     
     NavMesh navMesh;
     buildNavMesh(&memoryArena, &contours, triangulatedCountours, &navMesh);
-    GLuint navMeshVao = create3DVertexArray(navMesh.vertices, navMesh.vertCount,
-                                            navMesh.polygons, 2*navMesh.polyCount*navMesh.maxVertPerPoly);
+    GLuint* navVaos = pushArray<GLuint>(&memoryArena, navMesh.polyCount);
+    for(uint32 i = 0; i < navMesh.polyCount; i++) {
+        navVaos[i] = create3DIndexedVertexArray(navMesh.vertices, navMesh.vertCount,
+                                                navMesh.polygons + 2*i*navMesh.maxVertPerPoly, navMesh.maxVertPerPoly);
+    }
     
     struct Debug {
         bool showDistanceField = false;
@@ -475,15 +474,14 @@ int main()
                         glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
                         glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
 
-                        glBindVertexArray(navMeshVao);
                         logOpenGLErrors();
-                        for(uint32 i = 0; i < 1; i++) {
+                        for(uint32 i = 0; i < navMesh.polyCount; i++) {
                             uint32 iCount = 0;
                             uint32 offset = 2*navMesh.maxVertPerPoly*i;
                             uint32* indices = navMesh.polygons+offset;
                             while(indices[iCount] != NULL_INDEX) iCount++;
-                            glDrawRangeElements(GL_TRIANGLES, offset, offset+iCount,
-                                                2*navMesh.maxVertPerPoly*navMesh.polyCount, GL_UNSIGNED_INT, 0);
+                            glBindVertexArray(navVaos[i]);
+                            glDrawElements(GL_LINE_LOOP, iCount, GL_UNSIGNED_INT, 0);
                         }
                         glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
                     }

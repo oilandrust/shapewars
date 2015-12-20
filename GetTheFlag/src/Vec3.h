@@ -84,6 +84,11 @@ inline real32 dot(const Vec3& v1, const Vec3& v2)
     return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
+inline real32 sqrLength(const Vec3& v)
+{
+    return dot(v, v);
+}
+
 inline real32 length(const Vec3& v)
 {
     return sqrtf(dot(v, v));

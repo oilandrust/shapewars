@@ -413,20 +413,17 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
             // We visit in order from top-left to bottom so the direction must be DOWN for ccw order.
             Dir fDir = DOWN;
             Dir rDir = (Dir)((fDir+1)%4);
-            int32 idRight = idAtRight(ids, w, h, i, j, rDir);
-            
-            // First vertex.
-            verts[count++] = Vec3(i, h-j, 0.5);
             
             uint32 x = i;
             uint32 y = j;
             uint32 xb = i;
             uint32 yb = j;
-            bool edgeForward;
-            bool edgeRight;
+            
             do {
-                idRight = idAtRight(ids, w, h, x, y, rDir);
+                int32 idRight = idAtRight(ids, w, h, x, y, rDir);
                 bool endOfSegment = false;
+                bool edgeForward;
+                bool edgeRight;
                 
                 // Go to the end of the segment.
                 do {
@@ -443,7 +440,7 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
                     
                     endOfSegment = edgeForward || !edgeRight;
                     
-                    if(!endOfSegment && newIdRight != idRight) {
+                    if(edgeRight && newIdRight != idRight) {
                         Vec3 cellCenter = Vec3(x+0.5, h-y-0.5, 0.5);
                         Vec3 offset(.0f,.0f,.0f);
                         
@@ -460,31 +457,29 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
                 } while (!endOfSegment);
                 
                 // Add a vertex.
-                ASSERT(count < w*h);
-                Vec3 cellCenter = Vec3(x+0.5, h-y-0.5, 0.5);
-                Vec3 offset(.0f,.0f,.0f);
-                
-                switch (fDir) {
-                    case UP: offset = edgeForward?Vec3(.5f, .5f, .0f):Vec3(.5f, -.5f, .0f); break;
-                    case RIGHT: offset = edgeForward?Vec3(.5f, -.5f, .0f):Vec3(-.5f, -.5f, .0f); break;
-                    case DOWN: offset = edgeForward?Vec3(-.5f, -.5f, .0f):Vec3(-.5f, .5f, .0f); break;
-                    case LEFT: offset = edgeForward?Vec3(-.5f, .5f, .0f):Vec3(.5f, .5f, .0f); break;
-                }
-                
-                if(x != xb || y != yb) {
-                    verts[count++] = cellCenter + offset;
+                if(edgeForward) {
+                    ASSERT(count < w*h);
+                    Vec3 cellCenter = Vec3(x+0.5, h-y-0.5, 0.5);
+                    Vec3 offset(.0f,.0f,.0f);
                     
+                    switch (fDir) {
+                        case UP: offset = edgeForward?Vec3(.5f, .5f, .0f):Vec3(.5f, -.5f, .0f); break;
+                        case RIGHT: offset = edgeForward?Vec3(.5f, -.5f, .0f):Vec3(-.5f, -.5f, .0f); break;
+                        case DOWN: offset = edgeForward?Vec3(-.5f, -.5f, .0f):Vec3(-.5f, .5f, .0f); break;
+                        case LEFT: offset = edgeForward?Vec3(-.5f, .5f, .0f):Vec3(.5f, .5f, .0f); break;
+                    }
+                    verts[count++] = cellCenter + offset;
                 }
                 // Turn
-                if(isEdge(ids, w, h, x, y, fDir)) {
+                if(edgeForward) {
+                    // turn left.
                     rDir = fDir;
                     fDir = fDir == 0?LEFT:(Dir)((fDir-1)%4);
                 } else {
+                    // turn right.
                     fDir = rDir;
                     rDir = (Dir)((fDir+1)%4);
                 }
-                
-                idRight = idAtRight(ids, w, h, x, y, rDir);
             } while(x != xb || y != yb);
             
             // resize verts
@@ -493,7 +488,6 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
             Contour* contour = &contours->contours[contours->count++];
             contour->vertices = verts;
             contour->count = count;
-            return;
         }
     }
 }
@@ -570,11 +564,13 @@ void triangulateContours(MemoryArena* arena, ContourSet* contours, Mesh3D* meshe
                 }
                 l = i1;
             }
-            //ASSERT(found);
+            ASSERT(found);
             excluded[mi1] = true;
             indices[3*f] = mi0;
             indices[3*f+1] = mi1;
             indices[3*f+2] = mi2;
+            
+            ASSERT(isCCW(verts[mi0], verts[mi1], verts[mi2]));
         }
         indices += 3*fCount;
         popArray<bool>(arena, vCount);
@@ -594,6 +590,98 @@ static uint32 findOrAddVertex(NavMesh* mesh, const Vec3& pos) {
     uint32 i = mesh->vertCount++;
     verts[i] = pos;
     return i;
+}
+
+static uint32 polyVertCount(uint32 mvp, uint32* poly) {
+    uint32 pvCount = 0;
+    while(poly[pvCount] != NULL_INDEX) {
+        pvCount++;
+        ASSERT(pvCount <= mvp);
+    }
+    return pvCount;
+}
+
+static uint32 next(uint32 i, uint32 max) {
+    return (i+1) % max;
+}
+
+static uint32 prev(uint32 i, uint32 max) {
+    return i == 0?max-1:i-1;
+}
+
+static real32 validMergeEdgeLength(NavMesh* mesh, uint32* p, uint32* q, uint32& ve, uint32& we) {
+
+    uint32 pvCount = polyVertCount(mesh->maxVertPerPoly, p);
+    uint32 qvCount = polyVertCount(mesh->maxVertPerPoly, q);
+    
+    if(pvCount + qvCount - 2 > mesh->maxVertPerPoly) {
+        return 0;
+    }
+    
+    // For each edge
+    for(uint32 i = 0; i < pvCount; i++) {
+        uint32 vp = p[i];
+        uint32 j = next(i, pvCount);
+        uint32 wp = p[j];
+
+        for(uint32 l = 0; l < qvCount; l++) {
+            // the edge is shared.
+            uint32 wq = q[l];
+            uint32 k = prev(l, qvCount);
+            uint32 vq = q[k];
+            if(wq == vp && vq == wp) {
+                
+                // If the resulting merge is convex.
+                Vec3 pVPrevP = mesh->vertices[p[prev(i, pvCount)]];
+                Vec3 pV = mesh->vertices[vp];
+                Vec3 pVNextQ = mesh->vertices[q[next(l, qvCount)]];
+                
+                Vec3 pWPrevQ = mesh->vertices[q[prev(k, qvCount)]];
+                Vec3 pW = mesh->vertices[wp];
+                Vec3 pWNextP = mesh->vertices[p[next(j, pvCount)]];
+                
+                if(isCCW(pVPrevP, pV, pVNextQ) && isCCW(pWPrevQ, pW, pWNextP)) {
+                    ve = j;
+                    we = l;
+                    return sqrLength(pV - pW);
+                }
+                else
+                    return 0.0;
+            }
+        }
+    }
+    
+    return 0;
+}
+
+static void mergePolygons(MemoryArena* arena, uint32* polys, uint32 nPolys, uint32 mvp, uint32 p, uint32 q, uint32 pb, uint32 qb) {
+    
+    uint32* temp = pushArray<uint32>(arena, mvp);
+    memcpy(temp, polys + p, mvp*sizeof(uint32));
+    
+    uint32* polyP = polys + p*mvp;
+    uint32* polyQ = polys + q*mvp;
+    uint32 pvCount = polyVertCount(mvp, polyP);
+    uint32 qvCount = polyVertCount(mvp, polyQ);
+    
+    // Copy indices from P
+    uint32 pi = pb;
+    for(uint32 i = 0; i < pvCount-1; i++) {
+        polyP[i] = temp[pi];
+        pi = next(pi, pvCount);
+    }
+    
+    // Copy indices from Q.
+    uint32 qi = qb;
+    for(uint32 i = 0; i < qvCount-1; i++) {
+        polyP[i+pvCount-1] = polyQ[pi];
+        qi = next(qi, qvCount);
+    }
+    
+    if(q != nPolys-1) {
+        memcpy(polyQ, polys+nPolys-1, mvp*sizeof(uint32));
+    }
+    popArray<uint32*>(arena, mvp);
 }
 
 
@@ -631,10 +719,10 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
         }
       
         // Temporary polygon soup intialized with the triangles.
-        uint32* polys = pushArray<uint32>(arena, 2*maxVertsPerPoly*triMesh->fCount);
-        memset(polys, 0xff, 2*maxVertsPerPoly*triMesh->fCount*sizeof(uint32));
+        uint32* polys = pushArray<uint32>(arena, maxVertsPerPoly*triMesh->fCount);
+        memset(polys, 0xff, maxVertsPerPoly*triMesh->fCount*sizeof(uint32));
         for(uint32 t = 0 ; t < triMesh->fCount; t++) {
-            uint32* poly = polys + 2*maxVertsPerPoly*t;
+            uint32* poly = polys + maxVertsPerPoly*t;
             uint32* tri = triInds + 3*t;
             poly[0] = iMap[tri[0]];
             poly[1] = iMap[tri[1]];
@@ -643,18 +731,48 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
         uint32 nPolys = triMesh->fCount;
         
         // Merge Polygons.
-        
+        for(;;) {
+            // Find p0 and p1, polygons with longest shared edge.
+            uint32 p0, p1;
+            uint32 v0, v1;
+            real32 maxEdge = .0f;
+            
+            for (uint32 p = 0; p < nPolys-1; p++) {
+                uint32* polyP = polys + maxVertsPerPoly*p;
+                for (uint32 q = p+1; q < nPolys; q++) {
+                    // if p and q share an edge and are a valid convex merge.
+                    uint32* polyQ = polys + maxVertsPerPoly*q;
+                    uint32 v, w;
+                    real32 e = validMergeEdgeLength(mesh, polyP, polyQ, v, w);
+                    if(e > maxEdge) {
+                        p0 = p;
+                        p1 = q;
+                        v0 = v;
+                        v1 = w;
+                        maxEdge = e;
+                    }
+                }
+            }
+            // If we can merge, do it
+            if(maxEdge > 0) {
+                mergePolygons(arena, polys, nPolys, maxVertsPerPoly, p0, p1, v0, v1);
+                nPolys--;
+            } else {
+                // Stop if no possible merge was found.
+                break;
+            }
+        }
         
         // Copy Polygons to NavMesh.
         for(uint32 p = 0; p < nPolys; p++) {
             uint32* mPoly = mesh->polygons + 2*maxVertsPerPoly*mesh->polyCount++;
-            uint32* poly = polys + 2*maxVertsPerPoly*p;
-            for(uint32 i = 0; i < 2*maxVertsPerPoly; i++) {
+            uint32* poly = polys + maxVertsPerPoly*p;
+            for(uint32 i = 0; i < maxVertsPerPoly; i++) {
                 mPoly[i] = poly[i];
             }
         }
         
-        popArray<uint32>(arena, 2*maxVertsPerPoly*triMesh->fCount);
+        popArray<uint32>(arena, maxVertsPerPoly*triMesh->fCount);
         popArray<uint32>(arena, triMeshes->vCount);
     }
     
