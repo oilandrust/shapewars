@@ -502,6 +502,10 @@ static bool isCCW(const Vec3& p0, const Vec3& p1, const Vec3& p2) {
     return cross(p1-p0, p2-p1).z > 0;
 }
 
+static bool isCCWOrColinear(const Vec3& p0, const Vec3& p1, const Vec3& p2) {
+    return cross(p1-p0, p2-p1).z >= 0;
+}
+
 void triangulateContours(MemoryArena* arena, ContourSet* contours, Mesh3D* meshes) {
     
     uint32 totalVCount = 0;
@@ -594,9 +598,8 @@ static uint32 findOrAddVertex(NavMesh* mesh, const Vec3& pos) {
 
 static uint32 polyVertCount(uint32 mvp, uint32* poly) {
     uint32 pvCount = 0;
-    while(poly[pvCount] != NULL_INDEX) {
+    while(poly[pvCount] != NULL_INDEX && pvCount < mvp) {
         pvCount++;
-        ASSERT(pvCount <= mvp);
     }
     return pvCount;
 }
@@ -640,7 +643,7 @@ static real32 validMergeEdgeLength(NavMesh* mesh, uint32* p, uint32* q, uint32& 
                 Vec3 pW = mesh->vertices[wp];
                 Vec3 pWNextP = mesh->vertices[p[next(j, pvCount)]];
                 
-                if(isCCW(pVPrevP, pV, pVNextQ) && isCCW(pWPrevQ, pW, pWNextP)) {
+                if(isCCWOrColinear(pVPrevP, pV, pVNextQ) && isCCWOrColinear(pWPrevQ, pW, pWNextP)) {
                     ve = j;
                     we = l;
                     return sqrLength(pV - pW);
@@ -656,13 +659,17 @@ static real32 validMergeEdgeLength(NavMesh* mesh, uint32* p, uint32* q, uint32& 
 
 static void mergePolygons(MemoryArena* arena, uint32* polys, uint32 nPolys, uint32 mvp, uint32 p, uint32 q, uint32 pb, uint32 qb) {
     
-    uint32* temp = pushArray<uint32>(arena, mvp);
-    memcpy(temp, polys + p, mvp*sizeof(uint32));
-    
     uint32* polyP = polys + p*mvp;
     uint32* polyQ = polys + q*mvp;
+  
     uint32 pvCount = polyVertCount(mvp, polyP);
+    ASSERT(pvCount >= 3);
     uint32 qvCount = polyVertCount(mvp, polyQ);
+    ASSERT(qvCount >= 3);
+
+    uint32* temp = pushArray<uint32>(arena, mvp);
+    memcpy(temp, polyP, mvp*sizeof(uint32));
+    memset(polyP, 0xff, mvp*sizeof(uint32));
     
     // Copy indices from P
     uint32 pi = pb;
@@ -674,14 +681,14 @@ static void mergePolygons(MemoryArena* arena, uint32* polys, uint32 nPolys, uint
     // Copy indices from Q.
     uint32 qi = qb;
     for(uint32 i = 0; i < qvCount-1; i++) {
-        polyP[i+pvCount-1] = polyQ[pi];
+        polyP[i+pvCount-1] = polyQ[qi];
         qi = next(qi, qvCount);
     }
     
     if(q != nPolys-1) {
-        memcpy(polyQ, polys+nPolys-1, mvp*sizeof(uint32));
+        memcpy(polyQ, polys+mvp*(nPolys-1), mvp*sizeof(uint32));
     }
-    popArray<uint32*>(arena, mvp);
+    popArray<uint32>(arena, mvp);
 }
 
 
@@ -694,7 +701,6 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
         totalVCount += contours->contours[c].count;
         totalTriCount += contours->contours[c].count -2 ;
     }
-    
     
     mesh->maxVertPerPoly = 6;
     uint32 maxVertsPerPoly = mesh->maxVertPerPoly;
@@ -731,7 +737,7 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
         uint32 nPolys = triMesh->fCount;
         
         // Merge Polygons.
-        for(;;) {
+        for(;;){//for(int f =0;f<1;f++) {
             // Find p0 and p1, polygons with longest shared edge.
             uint32 p0, p1;
             uint32 v0, v1;
@@ -756,6 +762,12 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
             // If we can merge, do it
             if(maxEdge > 0) {
                 mergePolygons(arena, polys, nPolys, maxVertsPerPoly, p0, p1, v0, v1);
+                
+                // Check that the poly is ok.
+                uint32* poly = polys + maxVertsPerPoly*p0;
+                uint32 c = polyVertCount(maxVertsPerPoly, poly);
+                ASSERT(c >= 3);
+                
                 nPolys--;
             } else {
                 // Stop if no possible merge was found.
@@ -770,6 +782,7 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
             for(uint32 i = 0; i < maxVertsPerPoly; i++) {
                 mPoly[i] = poly[i];
             }
+            ASSERT(polyVertCount(mesh, p) >= 3);
         }
         
         popArray<uint32>(arena, maxVertsPerPoly*triMesh->fCount);
@@ -778,5 +791,19 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
     
     // Compute polys adjacency.
     
-    
 }
+
+
+uint32 polyVertCount(NavMesh* mesh, uint32 polyRef) {
+    ASSERT(polyRef < mesh->polyCount);
+    uint32* poly = mesh->polygons + 2*polyRef*mesh->maxVertPerPoly;
+    return polyVertCount(mesh->maxVertPerPoly, poly);
+}
+
+bool checkNavMesh(NavMesh* mesh) {
+    for(uint32 i = 0; i < mesh->polyCount; i++) {
+        ASSERT(polyVertCount(mesh, i) >= 3);
+    }
+    return true;
+}
+

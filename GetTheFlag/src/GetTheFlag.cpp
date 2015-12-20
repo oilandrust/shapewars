@@ -375,8 +375,8 @@ int main()
                 for(uint32 i = 0; i < MAP_WIDTH; i++) {
                     uint32 val = levelMap[i+j*MAP_HEIGHT];
                     if(val) {
-//                        Vec3 pos = Vec3(i+0.5f, MAP_HEIGHT-j-0.5f, val-0.5);
-//                        drawBox(flatDiffShader, &boxMesh, pos, Vec3(1.f, 1.f, 1.f));
+                        Vec3 pos = Vec3(i+0.5f, MAP_HEIGHT-j-0.5f, val-0.5);
+                        drawBox(flatDiffShader, &boxMesh, pos, Vec3(1.f, 1.f, 1.f));
                     }
                 }
             }
@@ -476,10 +476,7 @@ int main()
 
                         logOpenGLErrors();
                         for(uint32 i = 0; i < navMesh.polyCount; i++) {
-                            uint32 iCount = 0;
-                            uint32 offset = 2*navMesh.maxVertPerPoly*i;
-                            uint32* indices = navMesh.polygons+offset;
-                            while(indices[iCount] != NULL_INDEX) iCount++;
+                            uint32 iCount = polyVertCount(&navMesh, i);
                             glBindVertexArray(navVaos[i]);
                             glDrawElements(GL_LINE_LOOP, iCount, GL_UNSIGNED_INT, 0);
                         }

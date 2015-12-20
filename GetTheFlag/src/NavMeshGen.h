@@ -61,5 +61,9 @@ struct NavMesh {
 
 void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, NavMesh* mesh);
 
+bool checkNavMesh(NavMesh* mesh);
+
+uint32 polyVertCount(NavMesh* mesh, uint32 polyRef);
+
 
 #endif /* NavMeshGen_h */
