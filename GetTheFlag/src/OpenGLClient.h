@@ -61,6 +61,8 @@ GLuint create3DIndexedVertexArray(Mesh3D* mesh);
 
 GLuint create3DVertexArray(Mesh3D* mesh);
 
+GLuint create3DVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount);
+
 void printShaderLog(GLuint shader);
 void printProgramLog(GLuint program);
 

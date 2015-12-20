@@ -133,5 +133,7 @@ inline void popArray(MemoryArena* arena, size_t count) {
     popSize(arena, count*sizeof(T));
 }
 
+// TODO: introduce scoped array.
+
 
 #endif

@@ -9,7 +9,7 @@ struct KeyState {
     bool held;
 };
 
-enum KEYS {
+enum KEY {
     UP = 0,
     DOWN,
     LEFT,
@@ -22,9 +22,13 @@ enum KEYS {
     DEBUG_RELOAD_SHADERS,
     DEBUG_SHOW_DISTANCE_FIELD,
     DEBUG_SHOW_REGIONS,
+    DEBUG_SHOW_CONTOURS,
+    DEBUG_SHOW_TRI_REGIONS,
+    DEBUG_SHOW_POLY_REGIONS,
     
     NUM_KEYS
 };
+
 
 struct Input {
     KeyState keyStates[NUM_KEYS];
@@ -33,6 +37,7 @@ struct Input {
     int32 mouseY;
 };
 
+void initializeInput(Input* input);
 
 void processInput(Input* input);
 

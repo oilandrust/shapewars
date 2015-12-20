@@ -202,6 +202,48 @@ GLuint create3DVertexArray(Mesh3D* mesh)
     return vao;
 }
 
+GLuint create3DVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount)
+{
+    //Create VBO
+    GLuint vbo;
+    {
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vec3), data, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+    logOpenGLErrors();
+    
+    
+    // Element Buffer
+    GLuint ibo;
+    {
+        glGenBuffers(1, &ibo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, iCount * sizeof(uint32), indices, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
+
+    
+    // Create the vao
+    GLuint vao;
+    {
+        glGenVertexArrays(1, &vao);
+        glBindVertexArray(vao);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+        
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+    logOpenGLErrors();
+    return vao;
+}
+
 GLuint createShader(GLenum shaderType, const char* filename)
 {
     char shaderSource[4096];

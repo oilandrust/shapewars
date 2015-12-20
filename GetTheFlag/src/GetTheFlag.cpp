@@ -204,14 +204,14 @@ int main()
     RegionIdMap regionIds;
     genRegions(&memoryArena, &distanceField, &regionIds);
     
-    Contours contour;
-    genContours(&memoryArena, &regionIds, &contour);
+    ContourSet contours;
+    genContours(&memoryArena, &regionIds, &contours);
     
-    Mesh3D* contourMeshes = pushArray<Mesh3D>(&memoryArena, contour.count);
-    GLuint* lineVaos = pushArray<GLuint>(&memoryArena, contour.count);
-    for(uint32 i = 0; i < contour.count; i++) {
-        contourMeshes[i].vCount = contour.contours[i].count;
-        contourMeshes[i].positions = contour.contours[i].vertices;
+    Mesh3D* contourMeshes = pushArray<Mesh3D>(&memoryArena, contours.count);
+    GLuint* lineVaos = pushArray<GLuint>(&memoryArena, contours.count);
+    for(uint32 i = 0; i < contours.count; i++) {
+        contourMeshes[i].vCount = contours.contours[i].count;
+        contourMeshes[i].positions = contours.contours[i].vertices;
         contourMeshes[i].normals = 0;
         contourMeshes[i].indices = 0;
         contourMeshes[i].uvs = 0;
@@ -219,15 +219,26 @@ int main()
         lineVaos[i] = create3DVertexArray(&contourMeshes[i]);
     }
     
-    Mesh3D* triangulatedCountours = pushArray<Mesh3D>(&memoryArena, contour.count);
-    triangulateContours(&memoryArena, &contour, triangulatedCountours);
-    GLuint* contourMeshVaos = pushArray<GLuint>(&memoryArena, contour.count);
-    for(uint32 i = 0; i < contour.count; i++) {
+    Mesh3D* triangulatedCountours = pushArray<Mesh3D>(&memoryArena, contours.count);
+    triangulateContours(&memoryArena, &contours, triangulatedCountours);
+    GLuint* contourMeshVaos = pushArray<GLuint>(&memoryArena, contours.count);
+    for(uint32 i = 0; i < contours.count; i++) {
         contourMeshVaos[i] = create3DIndexedVertexArray(&triangulatedCountours[i]);
     }
     
-    bool DebugShowDistanceField = false;
-    bool DebugShowRegions = false;
+    NavMesh navMesh;
+    buildNavMesh(&memoryArena, &contours, triangulatedCountours, &navMesh);
+    GLuint navMeshVao = create3DVertexArray(navMesh.vertices, navMesh.vertCount,
+                                            navMesh.polygons, 2*navMesh.polyCount*navMesh.maxVertPerPoly);
+    
+    struct Debug {
+        bool showDistanceField = false;
+        bool showRegions = false;
+        bool showContours = false;
+        bool showTriRegions = false;
+        bool showNavMesh = false;
+    };
+    Debug debug;
     
     CameraPan camera;
     initializeCameraPan(&camera);
@@ -280,14 +291,31 @@ int main()
         if (input.keyStates[DEBUG_RELOAD_SHADERS].clicked) {
             reloadShaders(&renderer);
         }
-      
+        
         if (input.keyStates[DEBUG_SHOW_DISTANCE_FIELD].clicked) {
-            DebugShowDistanceField = true;
-            DebugShowRegions = false;
+            debug.showDistanceField = !debug.showDistanceField;
+            if(debug.showDistanceField)
+                debug.showRegions = false;
         }
         if (input.keyStates[DEBUG_SHOW_REGIONS].clicked) {
-            DebugShowRegions = true;
-            DebugShowDistanceField = false;
+            debug.showRegions = !debug.showRegions;
+            if(debug.showRegions)
+                debug.showDistanceField = false;
+        }
+        if (input.keyStates[DEBUG_SHOW_CONTOURS].clicked) {
+            debug.showContours = !debug.showContours;
+            if(debug.showContours)
+                debug.showTriRegions = false;
+        }
+        if (input.keyStates[DEBUG_SHOW_TRI_REGIONS].clicked) {
+            debug.showTriRegions = !debug.showTriRegions;
+            if(debug.showTriRegions)
+                debug.showContours = false;
+        }
+        if (input.keyStates[DEBUG_SHOW_POLY_REGIONS].clicked) {
+            debug.showNavMesh = !debug.showNavMesh;
+            if(debug.showNavMesh)
+                debug.showContours = false;
         }
 
         updateCameraPan(&camera, &input, &level, dt);
@@ -319,31 +347,6 @@ int main()
             Mat4 view = viewCamera.view;
             inverseTransform(view);
 
-            Shader* texDiffShader = &renderer.texDiffShader;
-            glUseProgram(texDiffShader->progId);
-            glUniformMatrix4fv(texDiffShader->projLoc,
-                               1, true, viewCamera.projection.data);
-            glUniformMatrix4fv(texDiffShader->viewLoc,
-                               1, true, view.data);
-
-            glBindVertexArray(planeVao);
-
-            Mat3 rot;
-            identity(rot);
-            glUniformMatrix3fv(texDiffShader->rotLoc, 1, true, rot.data);
-            glUniform3f(texDiffShader->sizeLoc, MAP_WIDTH, MAP_HEIGHT, 0.0f);
-            glUniform3f(texDiffShader->posLoc, 0.5f * MAP_WIDTH, 0.5f * MAP_HEIGHT, 0.f);
-            
-            glActiveTexture(GL_TEXTURE0);
-            glUniform1i(texDiffShader->diffTexLoc, 0);
-            
-            if(DebugShowDistanceField)
-                glBindTexture(GL_TEXTURE_2D, distanceField.texture.texId);
-            else
-                glBindTexture(GL_TEXTURE_2D, regionIds.texture.texId);
-            
-            glDrawElements(GL_TRIANGLES, 3*planeMesh.fCount, GL_UNSIGNED_INT, 0);
-
             /*
              * DRAW 3D COLOR VERTEX
              */
@@ -354,26 +357,19 @@ int main()
             glUniformMatrix4fv(flatDiffShader->viewLoc,
                                1, true, view.data);
             
-            // Draw lines
-            for(uint32 i = 0; i < contour.count; i++) {
-                glBindVertexArray(lineVaos[i]);
-                identity(rot);
-                glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
-                glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
-                glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
-                glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
-                
-               //glDrawArrays(GL_LINE_STRIP, 0, contour.contours[i].count);
-            }
-            glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-            for(uint32 i = 0; i < contour.count; i++) {
-                glBindVertexArray(contourMeshVaos[i]);
-                glDrawElements(GL_TRIANGLES, 3*triangulatedCountours[i].vCount, GL_UNSIGNED_INT, 0);
-            }
-            glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
-
-            // end lines
+            // Draw Ground
+            glBindVertexArray(planeVao);
             
+            Mat3 rot;
+            identity(rot);
+            glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
+            glUniform3f(flatDiffShader->sizeLoc, MAP_WIDTH, MAP_HEIGHT, 0.0f);
+            glUniform3f(flatDiffShader->posLoc, 0.5f * MAP_WIDTH, 0.5f * MAP_HEIGHT, 0.f);
+            glUniform3f(flatDiffShader->diffuseLoc, .5f, .5f, .5f);
+            
+            glDrawElements(GL_TRIANGLES, 3*planeMesh.fCount, GL_UNSIGNED_INT, 0);
+            
+            // Draw Walls
             glBindVertexArray(boxVao);
 
             for(uint32 j = 0; j < MAP_HEIGHT; j++) {
@@ -399,35 +395,99 @@ int main()
 
             logOpenGLErrors();
 
-#if 0
+#if 1
             {
                 // RENDER DEBUG CODE HERE
-                {
-                    Shader* spriteShader = &renderer.spriteShader;
-                    glUseProgram(spriteShader->progId);
-                    glUniformMatrix4fv(spriteShader->projLoc, 1, true, mat);
-                    glUniformMatrix4fv(spriteShader->viewLoc, 1, true, viewMatrix.data);
-
-                    // Bind the vao for drawing
-                    Mesh2* spriteMesh = &renderer.spriteMesh;
-                    glBindVertexArray(spriteMesh->vaoId);
-
-                    // Bind the texture to uniform
+                if(debug.showDistanceField || debug.showRegions) {
+                    Shader* texDiffShader = &renderer.texDiffShader;
+                    glUseProgram(texDiffShader->progId);
+                    glUniformMatrix4fv(texDiffShader->projLoc,
+                                       1, true, viewCamera.projection.data);
+                    glUniformMatrix4fv(texDiffShader->viewLoc,
+                                       1, true, view.data);
+                    
+                    glBindVertexArray(planeVao);
+                    
+                    Mat3 rot;
+                    identity(rot);
+                    glUniformMatrix3fv(texDiffShader->rotLoc, 1, true, rot.data);
+                    glUniform3f(texDiffShader->sizeLoc, MAP_WIDTH, MAP_HEIGHT, 0.0f);
+                    glUniform3f(texDiffShader->posLoc, 0.5f * MAP_WIDTH, 0.5f * MAP_HEIGHT, 0.1f);
+                    
                     glActiveTexture(GL_TEXTURE0);
-                    glUniform1i(spriteShader->texLoc, 0);
+                    glUniform1i(texDiffShader->diffTexLoc, 0);
+                    
+                    if(debug.showDistanceField)
+                        glBindTexture(GL_TEXTURE_2D, distanceField.texture.texId);
+                    else
+                        glBindTexture(GL_TEXTURE_2D, regionIds.texture.texId);
+                    
+                    glDrawElements(GL_TRIANGLES, 3*planeMesh.fCount, GL_UNSIGNED_INT, 0);
+                }
+                
+                
+                if(debug.showContours || debug.showTriRegions || debug.showNavMesh) {
+                    glPointSize(4.0f);
+                    
+                    Shader* flatDiffShader = &renderer.flatDiffShader;
+                    glUseProgram(flatDiffShader->progId);
+                    glUniformMatrix4fv(flatDiffShader->projLoc,
+                                       1, true, viewCamera.projection.data);
+                    glUniformMatrix4fv(flatDiffShader->viewLoc,
+                                       1, true, view.data);
+                    
+                    if(debug.showContours) {
+                        identity(rot);
+                        glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
+                        glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
+                        glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
+                        glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
+                        
+                        for(uint32 i = 0; i < contours.count; i++) {
+                            glBindVertexArray(lineVaos[i]);
+                            glDrawArrays(GL_POINTS, 0, contours.contours[i].count);
+                        }
+                    }
+                    
+                    if(debug.showTriRegions) {
+                        glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+                        
+                        identity(rot);
+                        glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
+                        glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
+                        glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
+                        glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
+                        
+                        for(uint32 i = 0; i < contours.count; i++) {
+                            glBindVertexArray(contourMeshVaos[i]);
+                            glDrawElements(GL_TRIANGLES, 3*triangulatedCountours[i].vCount, GL_UNSIGNED_INT, 0);
+                        }
+                        glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+                        glBindVertexArray(0);
+                    }
+                    
+                    logOpenGLErrors();
+                    if(debug.showNavMesh) {
+                        glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+                        identity(rot);
+                        glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
+                        glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
+                        glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
+                        glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
 
-                    // Rot Matrix
-                    real32 rot[4] = {
-                        1.f, 0.f,
-                        0.f, 1.f
-                    };
-                    glUniformMatrix2fv(spriteShader->rotLoc, 1, false, rot);
-
-                    // Camera follow zone
-                    glBindTexture(GL_TEXTURE_2D, groungTexture.texId);
-                    glUniform2f(spriteShader->sizeLoc, camera.zoneSize.x, camera.zoneSize.y);
-                    glUniform2f(spriteShader->posLoc, camera.target.x, camera.target.y);
-                    glDrawArrays(GL_TRIANGLES, 0, 6);
+                        glBindVertexArray(navMeshVao);
+                        logOpenGLErrors();
+                        for(uint32 i = 0; i < 1; i++) {
+                            uint32 iCount = 0;
+                            uint32 offset = 2*navMesh.maxVertPerPoly*i;
+                            uint32* indices = navMesh.polygons+offset;
+                            while(indices[iCount] != NULL_INDEX) iCount++;
+                            glDrawRangeElements(GL_TRIANGLES, offset, offset+iCount,
+                                                2*navMesh.maxVertPerPoly*navMesh.polyCount, GL_UNSIGNED_INT, 0);
+                        }
+                        glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+                    }
+                    logOpenGLErrors();
                 }
             }
 #endif
