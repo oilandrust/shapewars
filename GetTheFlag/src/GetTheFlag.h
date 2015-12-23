@@ -117,6 +117,18 @@ inline void popSize(MemoryArena* arena, size_t size) {
 }
 
 template<class T>
+inline T* pushStruct(MemoryArena* arena) {
+    return (T*)pushSize(arena, sizeof(T));
+}
+
+template<class T>
+inline T* pushStructZeroed(MemoryArena* arena) {
+    T* ptr = (T*)pushSize(arena, sizeof(T));
+    memset(ptr, 0, sizeof(T));
+    return ptr;
+}
+
+template<class T>
 inline T* pushArray(MemoryArena* arena, size_t count) {
     return (T*)pushSize(arena, count*sizeof(T));
 }
@@ -125,6 +137,13 @@ template<class T>
 inline T* pushArrayZeroed(MemoryArena* arena, size_t count) {
     T* ptr = (T*)pushSize(arena, count*sizeof(T));
     memset(ptr, 0, sizeof(T)*count);
+    return ptr;
+}
+
+template<class T>
+inline T* pushArrayValue(MemoryArena* arena, size_t count, uint8 val) {
+    T* ptr = (T*)pushSize(arena, count*sizeof(T));
+    memset(ptr, val, sizeof(T)*count);
     return ptr;
 }
 

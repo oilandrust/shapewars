@@ -691,8 +691,141 @@ static void mergePolygons(MemoryArena* arena, uint32* polys, uint32 nPolys, uint
     popArray<uint32>(arena, mvp);
 }
 
+struct Edge {
+    uint32 i1;
+    uint32 i0p;
+    uint32 i1p;
+    uint32 f0;
+    uint32 f1;
+    Edge* next;
+    bool notBorder;
+};
 
-void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, NavMesh* mesh) {
+static Vec3 polygonCenter(Vec3* verts, uint32* poly, uint32 mvp) {
+    Vec3 p = {0,0,0};
+    uint32 count = 0;
+    while(count < mvp && poly[count] != NULL_INDEX) {
+        p += verts[poly[count++]];
+    }
+    return (1.0f/count)*p;
+}
+
+void buildDualMesh(MemoryArena* arena, NavMesh* mesh,
+                   Edge* edges, uint32 edgeCount, DualMesh* dual) {
+    Vec3* verts = pushArray<Vec3>(arena, mesh->vertCount);
+    Vec3* mVerts = mesh->vertices;
+    uint32 mvp = mesh->maxVertPerPoly;
+    
+    for(uint32 p = 0; p < mesh->polyCount; p++) {
+        uint32* poly = mesh->polygons + 2*p*mvp;
+        verts[p] = polygonCenter(mVerts, poly, mvp);
+    }
+    
+    uint32* indices = pushArray<uint32>(arena, 2*edgeCount);
+    uint32 iCount = 0;
+    for(uint32 e = 0; e < edgeCount; e++) {
+        Edge* edge = edges + e;
+        if(edge->notBorder) {
+            indices[iCount++] = edge->f0;
+            indices[iCount++] = edge->f1;
+        }
+    }
+    
+    popArray<uint32>(arena, 2*edgeCount-iCount);
+    
+    dual->vertices = verts;
+    dual->vertCount = mesh->polyCount;
+    dual->indices = indices;
+    dual->indCount = iCount;
+}
+
+static void computePolygonAdjacency(MemoryArena* arena, NavMesh* mesh, DualMesh* dual) {
+    
+    // An edge has 2 vertex indices i0, i1.
+    // 2 polygons share an edge if one has (i0, i1) and the other (i1, i0).
+    // We first construct the set of edges such that i0 < i1 and,
+    // for each vertex i, create a list of the edges such that i is the first vertex of the edge,
+    // then for each edge (i0, i1) such that i0 > i1, we can find the oposite edge if it exists in the list of i1.
+    
+    uint32 mvp = mesh->maxVertPerPoly;
+    
+    // list of edges (i,j) whose first vertex is i and for which i < j.
+    Edge* edges = pushArrayZeroed<Edge>(arena, mesh->polyCount*mvp);
+    uint32 edgeCount = 0;
+    Edge** edgesFromVertex = pushArrayZeroed<Edge*>(arena, mesh->vertCount);
+    
+    for(uint32 p = 0; p < mesh->polyCount; p++) {
+        uint32 i = 0;
+        uint32* poly = mesh->polygons + 2*p*mvp;
+        while(poly[i] != NULL_INDEX && i < mvp) {
+            uint32 i0 = poly[i];
+            uint32 i1 = poly[next(i, mvp)];
+            if(i1 == NULL_INDEX) i1 = poly[0];
+            
+            if(i0 < i1) {
+                Edge* edge = edges + edgeCount++;
+                edge->i0p = i;
+                edge->i1 = i1;
+                edge->f0 = p;
+                
+                Edge* tail = edgesFromVertex[i0];
+                if(tail == NULL) {
+                    edgesFromVertex[i0] = edge;
+                } else {
+                    while(tail->next != NULL) {
+                        tail = tail->next;
+                    }
+                    tail->next = edge;
+                }
+            }
+            i++;
+        }
+    }
+    
+    for(uint32 p = 0; p < mesh->polyCount; p++) {
+        uint32 i = 0;
+        uint32* poly = mesh->polygons + 2*p*mvp;
+        while(poly[i] != NULL_INDEX && i < mvp) {
+            uint32 i1 = poly[i];
+            uint32 i0 = poly[next(i, mvp)];
+            if(i0 == NULL_INDEX) i0 = poly[0];
+            
+            if(i0 < i1) {
+                Edge* edge = edgesFromVertex[i0];
+                while(edge != NULL && edge->i1 != i1 && edge->next != NULL) {
+                    edge = edge->next;
+                }
+                
+                if(edge != NULL && edge->i1 == i1) {
+                    edge->f1 = p;
+                    edge->i1p = i;
+                    edge->notBorder = true;
+                }
+            }
+            i++;
+        }
+    }
+    
+    for(uint32 e = 0; e < edgeCount; e++) {
+        Edge* edge = edges + e;
+        if(!edge->notBorder) {
+            continue;
+        }
+        
+        uint32* p0 = mesh->polygons + 2*edge->f0*mvp;
+        uint32* p1 = mesh->polygons + 2*edge->f1*mvp;
+        
+        p0[mvp+edge->i0p] = edge->f1;
+        p1[mvp+edge->i1p] = edge->f0;
+    }
+    
+    buildDualMesh(arena, mesh, edges, edgeCount, dual);
+    
+    popArray<Edge*>(arena, mesh->vertCount);
+    popArray<Edge>(arena, mesh->polyCount*mvp);
+}
+
+void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, NavMesh* mesh, DualMesh* dual) {
     
     // Convert tri meshes to poly meshes. Each mesh is converted to a polygon and all polygons share the same vertices.
     uint32 totalVCount = 0;
@@ -707,7 +840,7 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
     
     // Vertices of the final mesh without duplication.
     Vec3* meshVerts = pushArray<Vec3>(arena, totalVCount);
-    uint32* meshPolys  = pushArrayZeroed<uint32>(arena, 2*maxVertsPerPoly*totalTriCount);
+    uint32* meshPolys  = pushArrayValue<uint32>(arena, 2*maxVertsPerPoly*totalTriCount, 0xff);
     mesh->vertCount = 0;
     mesh->vertices = meshVerts;
     mesh->polyCount = 0;
@@ -737,7 +870,7 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
         uint32 nPolys = triMesh->fCount;
         
         // Merge Polygons.
-        for(;;){//for(int f =0;f<1;f++) {
+        for(;;){
             // Find p0 and p1, polygons with longest shared edge.
             uint32 p0, p1;
             uint32 v0, v1;
@@ -789,8 +922,7 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
         popArray<uint32>(arena, triMeshes->vCount);
     }
     
-    // Compute polys adjacency.
-    
+    computePolygonAdjacency(arena, mesh, dual);
 }
 
 
@@ -806,4 +938,5 @@ bool checkNavMesh(NavMesh* mesh) {
     }
     return true;
 }
+
 

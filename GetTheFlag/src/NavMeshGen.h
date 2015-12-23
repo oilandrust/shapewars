@@ -59,7 +59,15 @@ struct NavMesh {
     uint32 maxVertPerPoly;
 };
 
-void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, NavMesh* mesh);
+struct DualMesh {
+    Vec3* vertices;
+    uint32 vertCount;
+    uint32* indices;
+    uint32 indCount;
+};
+
+void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes,
+                  NavMesh* mesh, DualMesh* dual);
 
 bool checkNavMesh(NavMesh* mesh);
 

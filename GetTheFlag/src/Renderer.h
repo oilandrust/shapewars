@@ -8,6 +8,7 @@
 struct Renderer {
     Shader flatDiffShader;
     Shader texDiffShader;
+    Shader flatColorShader;
 };
 
 void intializeRendererRessources(Renderer* renderer);

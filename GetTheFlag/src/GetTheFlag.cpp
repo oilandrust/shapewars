@@ -17,6 +17,21 @@
 #include "Animation.h"
 #include "NavMeshGen.h"
 
+
+// TODO: 7 days
+// NavMesh connectivity
+// NavMesh navigation
+// Mouse unproject
+// Cleanup
+// Bigger level
+// Fog of war
+// Minimap
+// Igui
+// Start Screen
+// Pause Menu
+// Multiple entities
+
+
 #define DEVENV
 
 #include <unistd.h>
@@ -223,12 +238,14 @@ int main()
     }
     
     NavMesh navMesh;
-    buildNavMesh(&memoryArena, &contours, triangulatedCountours, &navMesh);
+    DualMesh dual;
+    buildNavMesh(&memoryArena, &contours, triangulatedCountours, &navMesh, &dual);
     GLuint* navVaos = pushArray<GLuint>(&memoryArena, navMesh.polyCount);
     for(uint32 i = 0; i < navMesh.polyCount; i++) {
         navVaos[i] = create3DIndexedVertexArray(navMesh.vertices, navMesh.vertCount,
                                                 navMesh.polygons + 2*i*navMesh.maxVertPerPoly, navMesh.maxVertPerPoly);
     }
+    GLuint dualVao = create3DIndexedVertexArray(dual.vertices, dual.vertCount, dual.indices, dual.indCount);
     
     struct Debug {
         bool showDistanceField = false;
@@ -236,6 +253,7 @@ int main()
         bool showContours = false;
         bool showTriRegions = false;
         bool showNavMesh = false;
+        bool showDual = false;
     };
     Debug debug;
     
@@ -428,7 +446,7 @@ int main()
                 if(debug.showContours || debug.showTriRegions || debug.showNavMesh) {
                     glPointSize(4.0f);
                     
-                    Shader* flatDiffShader = &renderer.flatDiffShader;
+                    Shader* flatDiffShader = &renderer.flatColorShader;
                     glUseProgram(flatDiffShader->progId);
                     glUniformMatrix4fv(flatDiffShader->projLoc,
                                        1, true, viewCamera.projection.data);
@@ -472,7 +490,7 @@ int main()
                         glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
                         glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
                         glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
-                        glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
+                        glUniform3f(flatDiffShader->diffuseLoc, .0f, .0f, 1.0f);
 
                         logOpenGLErrors();
                         for(uint32 i = 0; i < navMesh.polyCount; i++) {
@@ -481,6 +499,10 @@ int main()
                             glDrawElements(GL_LINE_LOOP, iCount, GL_UNSIGNED_INT, 0);
                         }
                         glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+                        
+                        glBindVertexArray(dualVao);
+                        glUniform3f(flatDiffShader->diffuseLoc, 1.0f, .0f, 0.0f);
+                        glDrawElements(GL_LINES, dual.indCount, GL_UNSIGNED_INT, 0);
                     }
                     logOpenGLErrors();
                 }
