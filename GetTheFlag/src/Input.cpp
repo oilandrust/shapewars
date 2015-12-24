@@ -52,7 +52,7 @@ void processInput(Input* input)
                 {
                     processKeyEvent(input, &event, DEBUG_RELOAD_SHADERS);
                 }
-                else if(event.key.keysym.sym == SDLK_d)
+                else if(event.key.keysym.sym == SDLK_f)
                 {
                     processKeyEvent(input, &event, DEBUG_SHOW_DISTANCE_FIELD);
                 }
@@ -71,6 +71,10 @@ void processInput(Input* input)
                 else if(event.key.keysym.sym == SDLK_n)
                 {
                     processKeyEvent(input, &event, DEBUG_SHOW_POLY_REGIONS);
+                }
+                else if(event.key.keysym.sym == SDLK_d)
+                {
+                    processKeyEvent(input, &event, DEBUG_SHOW_DUAL_MESH);
                 }
             }
             switch (event.type)

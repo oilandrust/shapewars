@@ -19,7 +19,6 @@
 
 
 // TODO: 7 days
-// NavMesh connectivity
 // NavMesh navigation
 // Mouse unproject
 // Cleanup
@@ -52,43 +51,7 @@ void drawBox(Shader* shader, Mesh3D* mesh, Vec3 pos, Vec3 size) {
 
 }
 
-#define MAP_WIDTH 32
-#define MAP_HEIGHT 32
 
-uint8 levelMap[MAP_WIDTH*MAP_HEIGHT] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
-    2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2,
-    2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 3, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2,
-    1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
 
 struct ViewCamera {
     Mat4 projection;
@@ -210,11 +173,12 @@ int main()
     Level level;
     level.width = MAP_WIDTH;
     level.height = MAP_HEIGHT;
-    level.tiles = levelMap;
+    level.tiles = level2;
     
     // Init the nav mesh.
+    LevelRaster raster {level.tiles, level.width, level.height};
     DistanceField distanceField;
-    genDistanceField(&memoryArena, &level, &distanceField);
+    genDistanceField(&memoryArena, &raster, &distanceField);
     
     RegionIdMap regionIds;
     genRegions(&memoryArena, &distanceField, &regionIds);
@@ -334,6 +298,9 @@ int main()
             if(debug.showNavMesh)
                 debug.showContours = false;
         }
+        if (input.keyStates[DEBUG_SHOW_DUAL_MESH].clicked) {
+            debug.showDual = !debug.showDual;
+        }
 
         updateCameraPan(&camera, &input, &level, dt);
         
@@ -344,7 +311,7 @@ int main()
         Vec3 groundPos = intersectGround0(mouseRay);
         
         if (input.keyStates[FIRE1].clicked) {
-            setAIEntityTarget(&level, &bot, groundPos);
+            setAIEntityTarget(&memoryArena, &navMesh, &bot, groundPos);
         }
         
         updateAIEntity(&bot);
@@ -391,7 +358,7 @@ int main()
 
             for(uint32 j = 0; j < MAP_HEIGHT; j++) {
                 for(uint32 i = 0; i < MAP_WIDTH; i++) {
-                    uint32 val = levelMap[i+j*MAP_HEIGHT];
+                    uint32 val = level.tiles[i+j*MAP_HEIGHT];
                     if(val) {
                         Vec3 pos = Vec3(i+0.5f, MAP_HEIGHT-j-0.5f, val-0.5);
                         drawBox(flatDiffShader, &boxMesh, pos, Vec3(1.f, 1.f, 1.f));
@@ -405,11 +372,6 @@ int main()
             drawBox(flatDiffShader, &boxMesh,
                     groundPos, Vec3(.25f, .25f, 1.f));
             
-            for(uint32 i = 0; i < bot.pathLength; i++) {
-                Vec3 pos(bot.path[i]%MAP_WIDTH+0.5f, bot.path[i]/MAP_WIDTH+0.5f, 0);
-                drawBox(flatDiffShader, &boxMesh, pos, Vec3(.8f, .8f, 0.1f));
-            }
-
             logOpenGLErrors();
 
 #if 1
@@ -443,8 +405,7 @@ int main()
                 }
                 
                 
-                if(debug.showContours || debug.showTriRegions || debug.showNavMesh) {
-                    glPointSize(4.0f);
+                if(debug.showContours || debug.showTriRegions || debug.showNavMesh || debug.showDual) {
                     
                     Shader* flatDiffShader = &renderer.flatColorShader;
                     glUseProgram(flatDiffShader->progId);
@@ -453,26 +414,28 @@ int main()
                     glUniformMatrix4fv(flatDiffShader->viewLoc,
                                        1, true, view.data);
                     
+                    glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
+                    glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
+                    glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
+                    
                     if(debug.showContours) {
-                        identity(rot);
-                        glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
-                        glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
-                        glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
+                        glPointSize(4.0f);
                         glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
                         
                         for(uint32 i = 0; i < contours.count; i++) {
                             glBindVertexArray(lineVaos[i]);
                             glDrawArrays(GL_POINTS, 0, contours.contours[i].count);
                         }
+                        
+                        for(uint32 i = 0; i < contours.count; i++) {
+                            glBindVertexArray(lineVaos[i]);
+                            glDrawArrays(GL_LINE_LOOP, 0, contours.contours[i].count);
+                        }
+
                     }
                     
                     if(debug.showTriRegions) {
                         glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-                        
-                        identity(rot);
-                        glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
-                        glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
-                        glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
                         glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
                         
                         for(uint32 i = 0; i < contours.count; i++) {
@@ -486,10 +449,6 @@ int main()
                     logOpenGLErrors();
                     if(debug.showNavMesh) {
                         glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
-                        identity(rot);
-                        glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
-                        glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
-                        glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
                         glUniform3f(flatDiffShader->diffuseLoc, .0f, .0f, 1.0f);
 
                         logOpenGLErrors();
@@ -499,12 +458,14 @@ int main()
                             glDrawElements(GL_LINE_LOOP, iCount, GL_UNSIGNED_INT, 0);
                         }
                         glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
-                        
+                    }
+                    
+                    logOpenGLErrors();
+                    if(debug.showDual) {
                         glBindVertexArray(dualVao);
                         glUniform3f(flatDiffShader->diffuseLoc, 1.0f, .0f, 0.0f);
                         glDrawElements(GL_LINES, dual.indCount, GL_UNSIGNED_INT, 0);
                     }
-                    logOpenGLErrors();
                 }
             }
 #endif

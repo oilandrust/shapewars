@@ -1,6 +1,6 @@
 project(GetTheFlag)
-add_executable(GetTheFlag 
-	src/GetTheFlag.cpp	
+add_executable(GetTheFlag
+	src/GetTheFlag.cpp
 	src/GetTheFlag.h
 	src/Input.h
 	src/Input.cpp
@@ -20,8 +20,12 @@ add_executable(GetTheFlag
 	src/Renderer.h
 	src/Mesh.cpp
 	src/Mesh.h
-    src/NavMeshGen.cpp
-    src/NavMeshGen.h
+  	src/NavMeshGen.cpp
+	src/NavMeshGen.h
+	src/NavMesh.cpp
+	src/NavMesh.h
+	src/NavMeshQuery.cpp
+	src/NavMeshQuery.h
 
 	src/stb_image.cpp
 )

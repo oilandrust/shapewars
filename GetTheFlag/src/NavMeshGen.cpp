@@ -8,12 +8,12 @@
 
 #include "NavMeshGen.h"
 
-void genDistanceField(MemoryArena* arena, Level* level, DistanceField* field)
+void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* field)
 {
     field->width = level->width;
     field->height = level->height;
     
-    uint8* levelMap = level->tiles;
+    uint8* levelMap = level->raster;
     
     uint32 width = field->width;
     uint32 height = field->height;
@@ -175,7 +175,7 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
         }
     }
     
-    while(levelValue < 0.f) {
+    while(levelValue < 0.0f) {
         for(uint32 j = 0; j < count; j++) {
             regionIds_t1[j] = -1;
         }
@@ -305,6 +305,9 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
             }
         }
     }
+    
+    // If a regions wrap around a non walkable region, these non walkable region will become walkable.
+    // So we go through unwalkable regions, and if they have only one region as neighboor, split this region.
     
     // Assign a random color to each id
     RGB* colors = pushArray<RGB>(arena, nextId);
@@ -442,8 +445,8 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
                     
                     if(edgeRight && newIdRight != idRight) {
                         Vec3 cellCenter = Vec3(x+0.5, h-y-0.5, 0.5);
-                        Vec3 offset(.0f,.0f,.0f);
-                        
+                        // Add a vertex backwards.
+                        Vec3 offset;
                         switch (fDir) {
                             case UP: offset = Vec3(.5f, -.5f, .0f); break;
                             case RIGHT: offset = Vec3(-.5f, -.5f, .0f); break;
@@ -457,30 +460,39 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
                 } while (!endOfSegment);
                 
                 // Add a vertex.
-                if(edgeForward) {
+                if(edgeForward && edgeRight) {
                     ASSERT(count < w*h);
                     Vec3 cellCenter = Vec3(x+0.5, h-y-0.5, 0.5);
-                    Vec3 offset(.0f,.0f,.0f);
-                    
+                    Vec3 offset;
+                    // forwards.
                     switch (fDir) {
-                        case UP: offset = edgeForward?Vec3(.5f, .5f, .0f):Vec3(.5f, -.5f, .0f); break;
-                        case RIGHT: offset = edgeForward?Vec3(.5f, -.5f, .0f):Vec3(-.5f, -.5f, .0f); break;
-                        case DOWN: offset = edgeForward?Vec3(-.5f, -.5f, .0f):Vec3(-.5f, .5f, .0f); break;
-                        case LEFT: offset = edgeForward?Vec3(-.5f, .5f, .0f):Vec3(.5f, .5f, .0f); break;
+                        case UP: offset = Vec3(.5f, .5f, .0f); break;
+                        case RIGHT: offset = Vec3(.5f, -.5f, .0f); break;
+                        case DOWN: offset = Vec3(-.5f, -.5f, .0f); break;
+                        case LEFT: offset = Vec3(-.5f, .5f, .0f); break;
                     }
                     verts[count++] = cellCenter + offset;
                 }
                 // Turn
-                if(edgeForward) {
-                    // turn left.
-                    rDir = fDir;
-                    fDir = fDir == 0?LEFT:(Dir)((fDir-1)%4);
-                } else {
+                if(!edgeRight) {
                     // turn right.
                     fDir = rDir;
                     rDir = (Dir)((fDir+1)%4);
                 }
+                else {
+                    // turn left.
+                    rDir = fDir;
+                    fDir = fDir == 0?LEFT:(Dir)((fDir-1)%4);
+                }
             } while(x != xb || y != yb);
+            
+            // If the start position is in a 1 cell wide limb, add a vertex.
+            // we can spot that if the end direction is not the same as the start direction
+            if(fDir != DOWN) {
+                ASSERT(fDir == LEFT);
+                Vec3 cellCenter = Vec3(x+0.5, h-y-0.5, 0.5);
+                verts[count++] = cellCenter + Vec3(-.5f, .5f, .0f);
+            }
             
             // resize verts
             popArray<Vec3>(arena, w*h - count);

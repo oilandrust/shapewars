@@ -3,8 +3,14 @@
 #define NavMeshGen_h
 
 #include "GetTheFlag.h"
-#include "Level.h"
 #include "OpenGLClient.h"
+#include "NavMesh.h"
+
+struct LevelRaster {
+    uint8* raster;
+    uint32 width;
+    uint32 height;
+};
 
 struct DistanceField {
     uint32 width;
@@ -18,7 +24,7 @@ struct DistanceField {
     Texture texture;
 };
 
-void genDistanceField(MemoryArena* arena, Level* level, DistanceField* field);
+void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* field);
 
 struct RegionIdMap {
     uint32 width;
@@ -48,16 +54,6 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contour);
 // FIXME: Remove Mesh3D from here
 void triangulateContours(MemoryArena* arena, ContourSet* contours, Mesh3D* meshes);
 
-#define NULL_INDEX 0xffffffff
-
-struct NavMesh {
-    Vec3* vertices;
-    uint32* polygons; // 2*maxVertPerPoly*polyCount
-    
-    uint32 vertCount;
-    uint32 polyCount;
-    uint32 maxVertPerPoly;
-};
 
 struct DualMesh {
     Vec3* vertices;

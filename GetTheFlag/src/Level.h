@@ -5,6 +5,13 @@
 #include "Vec2.h"
 #include "Entities.h"
 
+#define MAP_WIDTH 32
+#define MAP_HEIGHT 32
+
+extern uint8 level1[MAP_WIDTH*MAP_HEIGHT];
+extern uint8 level2[MAP_WIDTH*MAP_HEIGHT];
+
+
 struct Level {
     uint8* tiles;
     uint32 width;
@@ -76,8 +83,5 @@ inline bool rectCollidesRect(const Rect& a, const Rect& b)
 extern bool levelRectCollides(Level* level, const Rect& rect);
 
 bool levelRectCollides(Level* level, const Vec2& size, const Vec2& position, const Vec2& velocity, const real32 dt, Vec2& collisionPoint, Vec2& normal);
-
-// TODO: Free tiles memory
-bool loadLevel(Level* level, Entities* entities, const char* filename);
 
 #endif
