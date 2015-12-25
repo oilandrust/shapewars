@@ -1,8 +1,8 @@
 #ifndef ENTITIESH
 #define ENTITIESH
 
-#include "Vec2.h"
 #include "OpenGLClient.h"
+#include "Vec2.h"
 
 struct Input;
 struct Level;
@@ -26,7 +26,6 @@ struct NavMesh;
 void setAIEntityTarget(MemoryArena* arena, NavMesh* navMesh, AIEntity* aiEntity, const Vec3& target);
 
 void updateEntity(Entity* entity);
-
 
 struct Entities {
     Entity bots[128];

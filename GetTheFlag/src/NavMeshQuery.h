@@ -14,6 +14,8 @@
 
 uint32 findContainingPolygon(NavMesh* navMesh, const Vec3& point);
 
+bool pointInsidePoly(NavMesh* mesh, uint32 p, const Vec3& point);
+
 struct Path {
     uint32 length;
     Vec3* points;
@@ -22,6 +24,6 @@ struct Path {
     uint32* polys;
 };
 
-bool findPath(NavMesh* navMesh, const Vec3& start, const Vec3& end, Path* path);
+bool findPath(MemoryArena* arena, NavMesh* navMesh, const Vec3& start, const Vec3& end, Path* path);
 
 #endif /* NavMeshQuery_h */

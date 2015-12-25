@@ -32,16 +32,15 @@ bool createTexture(Texture* texture, GLint format)
     return true;
 }
 
-
 void updateTextureData(Texture* texture, GLint format, void* data)
 {
     glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 format,
-                 texture->width, texture->height, 0,
-                 format,
-                 GL_UNSIGNED_BYTE,
-                 data);
+        0,
+        format,
+        texture->width, texture->height, 0,
+        format,
+        GL_UNSIGNED_BYTE,
+        data);
 }
 
 void loadTexture(Texture* tex, const char* filename)
@@ -58,227 +57,108 @@ void loadTexture(Texture* tex, const char* filename)
     createTexture(tex, GL_RGBA);
 }
 
+static GLuint createBufferObject(Vec3* data, uint32 count)
+{
+    GLuint boId;
+    glGenBuffers(1, &boId);
+    glBindBuffer(GL_ARRAY_BUFFER, boId);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vec3), data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    return boId;
+}
+
+static GLuint createBufferObject(Vec2* data, uint32 count)
+{
+    GLuint boId;
+    glGenBuffers(1, &boId);
+    glBindBuffer(GL_ARRAY_BUFFER, boId);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vec2), data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    return boId;
+}
+
+static GLuint createIndexBufferObject(uint32* data, uint32 count)
+{
+    GLuint ibo;
+
+    glGenBuffers(1, &ibo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, count * sizeof(uint32), data, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    return ibo;
+}
+
+static void bindAttribBuffer(GLuint buffer, GLuint loc, uint32 size)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glEnableVertexAttribArray(loc);
+    glVertexAttribPointer(loc, size, GL_FLOAT, GL_FALSE, 0, 0);
+}
+
 GLuint create3DIndexedVertexArray(Mesh3D* mesh)
 {
     //Create VBO
     GLuint vbo, nbo, cbo, tbo;
-    {
-        glGenBuffers(1, &vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec3), mesh->positions, GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-        if (mesh->normals) {
-            glGenBuffers(1, &nbo);
-            glBindBuffer(GL_ARRAY_BUFFER, nbo);
-            glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec3), mesh->normals, GL_STATIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-        }
-
-        if (mesh->colors) {
-            glGenBuffers(1, &cbo);
-            glBindBuffer(GL_ARRAY_BUFFER, cbo);
-            glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec3), mesh->colors, GL_STATIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-        }
-
-        if (mesh->uvs) {
-            glGenBuffers(1, &tbo);
-            glBindBuffer(GL_ARRAY_BUFFER, tbo);
-            glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec2), mesh->uvs, GL_STATIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-        }
+    vbo = createBufferObject(mesh->positions, mesh->vCount);
+    if (mesh->normals) {
+        nbo = createBufferObject(mesh->normals, mesh->vCount);
+    }
+    if (mesh->colors) {
+        cbo = createBufferObject(mesh->colors, mesh->vCount);
+    }
+    if (mesh->uvs) {
+        tbo = createBufferObject(mesh->uvs, mesh->vCount);
     }
 
     // Element Buffer
-    GLuint ibo;
-    {
-        glGenBuffers(1, &ibo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->fCount * sizeof(uint32), mesh->indices, GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    }
+    GLuint ibo = createIndexBufferObject(mesh->indices, 3 * mesh->fCount);
 
     // Create the vao
     GLuint vao;
-    {
-        glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
 
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-        if (mesh->normals) {
-            glBindBuffer(GL_ARRAY_BUFFER, nbo);
-            glEnableVertexAttribArray(1);
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        }
-
-        if (mesh->colors) {
-            glBindBuffer(GL_ARRAY_BUFFER, cbo);
-            glEnableVertexAttribArray(2);
-            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        }
-
-        if (mesh->uvs) {
-            glBindBuffer(GL_ARRAY_BUFFER, tbo);
-            glEnableVertexAttribArray(3);
-            glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, 0);
-        }
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
+    bindAttribBuffer(vbo, POS_ATTRIB_LOC, 3);
+    if (mesh->normals) {
+        bindAttribBuffer(nbo, NORM_ATTRIB_LOC, 3);
     }
-    return vao;
-}
+    if (mesh->colors) {
+        bindAttribBuffer(cbo, COL_ATTRIB_LOC, 3);
+    }
+    if (mesh->uvs) {
+        bindAttribBuffer(tbo, UV_ATTRIB_LOC, 2);
+    }
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
 
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
-GLuint create3DIndexedVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount) {
-    //Create VBO
-    GLuint vbo;
-    {
-        glGenBuffers(1, &vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vec3), data, GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
-    
-    // Element Buffer
-    GLuint ibo;
-    {
-        glGenBuffers(1, &ibo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, iCount*sizeof(uint32), indices, GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    }
-    
-    // Create the vao
-    GLuint vao;
-    {
-        glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
-        
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-        
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
-    return vao;
-}
-
-GLuint create3DVertexArray(Mesh3D* mesh)
-{
-    //Create VBO
-    GLuint vbo, nbo, cbo, tbo;
-    {
-        glGenBuffers(1, &vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec3), mesh->positions, GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        
-        if (mesh->normals) {
-            glGenBuffers(1, &nbo);
-            glBindBuffer(GL_ARRAY_BUFFER, nbo);
-            glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec3), mesh->normals, GL_STATIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-        }
-        
-        if (mesh->colors) {
-            glGenBuffers(1, &cbo);
-            glBindBuffer(GL_ARRAY_BUFFER, cbo);
-            glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec3), mesh->colors, GL_STATIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-        }
-        
-        if (mesh->uvs) {
-            glGenBuffers(1, &tbo);
-            glBindBuffer(GL_ARRAY_BUFFER, tbo);
-            glBufferData(GL_ARRAY_BUFFER, mesh->vCount * sizeof(Vec2), mesh->uvs, GL_STATIC_DRAW);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-        }
-    }
-    logOpenGLErrors();
-    
-    // Create the vao
-    GLuint vao;
-    {
-        glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
-        
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        
-        if (mesh->normals) {
-            glBindBuffer(GL_ARRAY_BUFFER, nbo);
-            glEnableVertexAttribArray(1);
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        }
-        
-        if (mesh->colors) {
-            glBindBuffer(GL_ARRAY_BUFFER, cbo);
-            glEnableVertexAttribArray(2);
-            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        }
-        
-        if (mesh->uvs) {
-            glBindBuffer(GL_ARRAY_BUFFER, tbo);
-            glEnableVertexAttribArray(3);
-            glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, 0, 0);
-        }
-        
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
-    logOpenGLErrors();
     return vao;
 }
 
 GLuint create3DVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount)
 {
     //Create VBO
-    GLuint vbo;
-    {
-        glGenBuffers(1, &vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vec3), data, GL_STATIC_DRAW);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
-    logOpenGLErrors();
-    
-    
-    // Element Buffer
-    GLuint ibo;
-    {
-        glGenBuffers(1, &ibo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, iCount * sizeof(uint32), indices, GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    }
+    GLuint vbo = createBufferObject(data, count);
 
-    
+    // Element Buffer
+    GLuint ibo = createIndexBufferObject(indices, iCount);
+
     // Create the vao
     GLuint vao;
-    {
-        glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
-        
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-        
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-        
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
-    logOpenGLErrors();
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    bindAttribBuffer(vbo, POS_ATTRIB_LOC, 3);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
     return vao;
 }
 

@@ -5,9 +5,9 @@
 
 void setAIEntityTarget(MemoryArena* arena, NavMesh* navMesh, AIEntity* aiEntity, const Vec3& target) {
     aiEntity->target = target;
-    
     Vec3 offset = aiEntity->target - aiEntity->entity.position;
     aiEntity->entity.velocity = 0.3*normalize(offset);
+    
     
 }
 

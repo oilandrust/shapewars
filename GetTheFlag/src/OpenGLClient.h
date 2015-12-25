@@ -2,9 +2,9 @@
 #define OPENGLCLIENTH
 
 #include "GetTheFlag.h"
+#include "Mesh.h"
 #include "Vec2.h"
 #include "Vec3.h"
-#include "Mesh.h"
 
 #include <SDL.h>
 #include <cmath>
@@ -29,6 +29,11 @@ struct Shader {
     GLint rotLoc;
     GLint diffTexLoc;
 };
+
+#define POS_ATTRIB_LOC 0
+#define NORM_ATTRIB_LOC 1
+#define COL_ATTRIB_LOC 2
+#define UV_ATTRIB_LOC 3
 
 struct Mesh2 {
     GLuint vaoId;
@@ -55,13 +60,7 @@ void updateTextureData(Texture* texture, GLint format, void* data);
 
 bool createShaderProgram(Shader* shader, const char* vsShaderFilename, const char* fsShaderFilename);
 
-bool create2DVertexBuffer(Mesh2* mesh);
-
 GLuint create3DIndexedVertexArray(Mesh3D* mesh);
-
-GLuint create3DIndexedVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount);
-
-GLuint create3DVertexArray(Mesh3D* mesh);
 
 GLuint create3DVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount);
 
