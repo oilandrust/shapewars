@@ -38,19 +38,6 @@
 #include <mach-o/dyld.h>
 #include <unistd.h>
 
-void drawBox(Shader* shader, Mesh3D* mesh, Vec3 pos, Vec3 size)
-{
-    Mat3 rot;
-    identity(rot);
-
-    glUniformMatrix3fv(shader->rotLoc, 1, true, rot.data);
-    glUniform3f(shader->sizeLoc, size.x, size.y, size.z);
-    glUniform3f(shader->posLoc, pos.x, pos.y, pos.z);
-    glUniform3f(shader->diffuseLoc, 1.0f, 1.0f, 1.0f);
-
-    glDrawElements(GL_TRIANGLES, 3 * mesh->fCount, GL_UNSIGNED_INT, 0);
-}
-
 struct ViewCamera {
     Mat4 projection;
     Mat4 view;
@@ -137,7 +124,7 @@ int main()
 
     // Initialize the rendering resources
     Renderer renderer;
-    intializeRendererRessources(&renderer);
+    intializeRenderer(&memoryArena, &renderer);
 
     // Load The Level
     Level level;
@@ -305,12 +292,40 @@ int main()
         updateAIEntity(&bot, dt);
         updateEntity(&bot.entity, dt);
 
-        // Render Game
         {
-            // Render Begin
-            rendererBeginFrame(&renderer);
 
-            // Set Global Uniforms
+            Mat3 identity3;
+            identity(identity3);
+
+            Vec3 groundSize(MAP_WIDTH, MAP_HEIGHT, 0.0f);
+            Vec3 groundCenter(0.5f * MAP_WIDTH, 0.5f * MAP_HEIGHT, 0.f);
+            pushMeshPiece(&renderer, &renderer.flatDiffShader,
+                planeVao, 3 * planeMesh.fCount,
+                identity3, groundSize, groundCenter, Vec3(.5f));
+
+            // Draw Walls
+            Vec3 boxColor = Vec3(0.75);
+
+            for (uint32 j = 0; j < MAP_HEIGHT; j++) {
+                for (uint32 i = 0; i < MAP_WIDTH; i++) {
+                    uint32 val = level.tiles[i + j * MAP_HEIGHT];
+                    if (val) {
+                        Vec3 boxSize = Vec3(0.75f, 0.75f, 1.f);
+                        Vec3 pos = Vec3(i + 0.5f, MAP_HEIGHT - j - 0.5f, val - 0.5);
+
+                        pushMeshPiece(&renderer, &renderer.flatDiffShader,
+                            boxVao, 3 * boxMesh.fCount,
+                            identity3, boxSize, pos, boxColor);
+                    }
+                }
+            }
+            pushMeshPiece(&renderer, &renderer.flatDiffShader,
+                boxVao, 3 * boxMesh.fCount,
+                identity3, Vec3(0.5), bot.entity.position + Vec3(0.f, 0.f, .5f), boxColor);
+
+            pushMeshPiece(&renderer, &renderer.flatDiffShader,
+                boxVao, 3 * boxMesh.fCount,
+                identity3, Vec3(.25f, .25f, 1.f), groundPos, boxColor);
 
             // Set the view Matrix
             identity(viewCamera.view);
@@ -319,158 +334,69 @@ int main()
             Mat4 view = viewCamera.view;
             inverseTransform(view);
 
-            /*
-             * DRAW 3D COLOR VERTEX
-             */
-            Shader* flatDiffShader = &renderer.flatDiffShader;
-            glUseProgram(flatDiffShader->progId);
-            glUniformMatrix4fv(flatDiffShader->projLoc,
-                1, true, viewCamera.projection.data);
-            glUniformMatrix4fv(flatDiffShader->viewLoc,
-                1, true, view.data);
-
-            // Draw Ground
-            glBindVertexArray(planeVao);
-
-            Mat3 rot;
-            identity(rot);
-            glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
-            glUniform3f(flatDiffShader->sizeLoc, MAP_WIDTH, MAP_HEIGHT, 0.0f);
-            glUniform3f(flatDiffShader->posLoc, 0.5f * MAP_WIDTH, 0.5f * MAP_HEIGHT, 0.f);
-            glUniform3f(flatDiffShader->diffuseLoc, .5f, .5f, .5f);
-
-            glDrawElements(GL_TRIANGLES, 3 * planeMesh.fCount, GL_UNSIGNED_INT, 0);
-
-            // Draw Walls
-            glBindVertexArray(boxVao);
-
-            for (uint32 j = 0; j < MAP_HEIGHT; j++) {
-                for (uint32 i = 0; i < MAP_WIDTH; i++) {
-                    uint32 val = level.tiles[i + j * MAP_HEIGHT];
-                    if (val) {
-                        Vec3 pos = Vec3(i + 0.5f, MAP_HEIGHT - j - 0.5f, val - 0.5);
-                        drawBox(flatDiffShader, &boxMesh, pos, Vec3(0.75f, 0.75f, 1.f));
-                    }
-                }
-            }
-            drawBox(flatDiffShader, &boxMesh,
-                bot.entity.position + Vec3(0.f, 0.f, .5f),
-                Vec3(0.5f, 0.5f, 0.5f));
-
-            drawBox(flatDiffShader, &boxMesh,
-                groundPos, Vec3(.25f, .25f, 1.f));
+            // Render Begin
+            rendererBeginFrame(&renderer);
 
             logOpenGLErrors();
 
-#if 1
-            {
-                // RENDER DEBUG CODE HERE
-                if (debug.showDistanceField || debug.showRegions) {
-                    Shader* texDiffShader = &renderer.texDiffShader;
-                    glUseProgram(texDiffShader->progId);
-                    glUniformMatrix4fv(texDiffShader->projLoc,
-                        1, true, viewCamera.projection.data);
-                    glUniformMatrix4fv(texDiffShader->viewLoc,
-                        1, true, view.data);
-
-                    glBindVertexArray(planeVao);
-
-                    Mat3 rot;
-                    identity(rot);
-                    glUniformMatrix3fv(texDiffShader->rotLoc, 1, true, rot.data);
-                    glUniform3f(texDiffShader->sizeLoc, MAP_WIDTH, MAP_HEIGHT, 0.0f);
-                    glUniform3f(texDiffShader->posLoc, 0.5f * MAP_WIDTH, 0.5f * MAP_HEIGHT, 0.1f);
-
-                    glActiveTexture(GL_TEXTURE0);
-                    glUniform1i(texDiffShader->diffTexLoc, 0);
-
-                    if (debug.showDistanceField)
-                        glBindTexture(GL_TEXTURE_2D, distanceField.texture.texId);
-                    else
-                        glBindTexture(GL_TEXTURE_2D, regionIds.texture.texId);
-
-                    glDrawElements(GL_TRIANGLES, 3 * planeMesh.fCount, GL_UNSIGNED_INT, 0);
+            // RENDER DEBUG CODE HERE
+            if (debug.showDistanceField || debug.showRegions) {
+                if (debug.showDistanceField) {
+                    pushMeshPieceTextured(&renderer, &renderer.texDiffShader, planeVao, 3 * planeMesh.fCount,
+                        distanceField.texture.texId, identity3, groundSize, groundCenter);
                 }
-
-                if (true || debug.showContours || debug.showTriRegions || debug.showNavMesh || debug.showDual) {
-
-                    Shader* flatDiffShader = &renderer.flatColorShader;
-                    glUseProgram(flatDiffShader->progId);
-                    glUniformMatrix4fv(flatDiffShader->projLoc,
-                        1, true, viewCamera.projection.data);
-                    glUniformMatrix4fv(flatDiffShader->viewLoc,
-                        1, true, view.data);
-
-                    glUniformMatrix3fv(flatDiffShader->rotLoc, 1, true, rot.data);
-                    glUniform3f(flatDiffShader->sizeLoc, 1, 1, 1);
-                    glUniform3f(flatDiffShader->posLoc, 0, 0, 0);
-
-                    if (debug.showContours) {
-                        glPointSize(4.0f);
-                        glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
-
-                        for (uint32 i = 0; i < contours.count; i++) {
-                            glBindVertexArray(lineVaos[i]);
-                            glDrawArrays(GL_POINTS, 0, contours.contours[i].count);
-                        }
-
-                        for (uint32 i = 0; i < contours.count; i++) {
-                            glBindVertexArray(lineVaos[i]);
-                            glDrawArrays(GL_LINE_LOOP, 0, contours.contours[i].count);
-                        }
-                    }
-
-                    if (debug.showTriRegions) {
-                        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                        glUniform3f(flatDiffShader->diffuseLoc, 1.0f, 1.0f, 1.0f);
-
-                        for (uint32 i = 0; i < contours.count; i++) {
-                            glBindVertexArray(contourMeshVaos[i]);
-                            glDrawElements(GL_TRIANGLES, 3 * triangulatedCountours[i].vCount, GL_UNSIGNED_INT, 0);
-                        }
-                        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                        glBindVertexArray(0);
-                    }
-
-                    logOpenGLErrors();
-                    if (debug.showNavMesh) {
-                        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                        glUniform3f(flatDiffShader->diffuseLoc, .0f, .0f, 1.0f);
-
-                        logOpenGLErrors();
-                        for (uint32 i = 0; i < navMesh.polyCount; i++) {
-                            uint32 iCount = polyVertCount(&navMesh, i);
-                            glBindVertexArray(navVaos[i]);
-                            glDrawElements(GL_LINE_LOOP, iCount, GL_UNSIGNED_INT, 0);
-                        }
-                        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                    }
-
-                    logOpenGLErrors();
-                    if (debug.showDual) {
-                        glBindVertexArray(dualVao);
-                        glUniform3f(flatDiffShader->diffuseLoc, 1.0f, .0f, 0.0f);
-                        glDrawElements(GL_LINES, dual.indCount, GL_UNSIGNED_INT, 0);
-                    }
-                }
-
-                for (uint32 p = 0; p < path.polyPathLength; p++) {
-                    uint32 iCount = polyVertCount(&navMesh, path.polys[p]);
-                    glBindVertexArray(navVaos[path.polys[p]]);
-                    glDrawElements(GL_LINE_LOOP, iCount, GL_UNSIGNED_INT, 0);
-                    logOpenGLErrors();
-                }
-
-                if (path.length > 0) {
-                    glBindVertexArray(pathVao);
-                    glDrawArrays(GL_LINE_STRIP, 0, path.length);
-                    logOpenGLErrors();
+                else {
+                    pushMeshPieceTextured(&renderer, &renderer.texDiffShader, planeVao, 3 * planeMesh.fCount,
+                        regionIds.texture.texId, identity3, groundSize, groundCenter);
                 }
             }
-#endif
 
-            glBindVertexArray(0);
-            glUseProgram(0);
+            if (true || debug.showContours || debug.showTriRegions || debug.showNavMesh || debug.showDual) {
+                if (debug.showContours) {
+                    for (uint32 i = 0; i < contours.count; i++) {
+                        pushArrayPiece(&renderer, &renderer.flatColorShader,
+                            lineVaos[i], contours.contours[i].count, ARRAY_POINTS,
+                            identity3, Vec3(1.f), Vec3(0.f), Vec3(1.f));
+                    }
+                    for (uint32 i = 0; i < contours.count; i++) {
+                        pushArrayPiece(&renderer, &renderer.flatColorShader,
+                            lineVaos[i], contours.contours[i].count, ARRAY_LINE_LOOP,
+                            identity3, Vec3(1.f), Vec3(0.f), Vec3(1.f));
+                    }
+                }
+
+                if (debug.showTriRegions) {
+                    for (uint32 i = 0; i < contours.count; i++) {
+                        pushMeshPieceWireframe(&renderer, &renderer.flatColorShader,
+                            contourMeshVaos[i], 3 * triangulatedCountours[i].vCount,
+                            identity3, Vec3(1.0f), Vec3(0.f), Vec3(1.0f));
+                    }
+                }
+                if (debug.showNavMesh) {
+                    for (uint32 i = 0; i < navMesh.polyCount; i++) {
+                        uint32 iCount = polyVertCount(&navMesh, i);
+                        pushIndexedArrayPiece(&renderer, &renderer.flatColorShader, navVaos[i], iCount, INDEXED_ARRAY_LINE_LOOP,
+                            identity3, Vec3(1.0f), Vec3(.0f), Vec3(0, 0, 1));
+                    }
+                }
+                if (debug.showDual) {
+                    pushIndexedArrayPiece(&renderer, &renderer.flatColorShader, dualVao, dual.indCount, INDEXED_ARRAY_LINES,
+                        identity3, Vec3(1.0f), Vec3(.0f), Vec3(1, 0, 0));
+                }
+            }
+
+            for (uint32 p = 0; p < path.polyPathLength; p++) {
+                uint32 iCount = polyVertCount(&navMesh, path.polys[p]);
+                pushIndexedArrayPiece(&renderer, &renderer.flatColorShader, navVaos[path.polys[p]], iCount, INDEXED_ARRAY_LINE_LOOP,
+                    identity3, Vec3(1.0f), Vec3(.0f), Vec3(1, 0, 0));
+            }
+            if (path.length > 0) {
+                pushArrayPiece(&renderer, &renderer.flatColorShader,
+                    pathVao, path.length, ARRAY_LINE_STRIP,
+                    identity3, Vec3(1.f), Vec3(0.f), Vec3(1.f));
+            }
+
+            renderAll(&renderer, viewCamera.projection, view);
 
             SDL_GL_SwapWindow(window);
             logOpenGLErrors();

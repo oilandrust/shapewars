@@ -8,7 +8,9 @@ add_executable(GetTheFlag
 	src/Level.cpp
 	src/Vec2.h
 	src/Vec3.h
+	src/Mat4.cpp
 	src/Mat4.h
+	src/Mat3.cpp
 	src/Mat3.h
 	src/OpenGLClient.h
 	src/OpenGLClient.cpp

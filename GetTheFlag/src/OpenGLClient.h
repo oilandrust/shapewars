@@ -15,9 +15,6 @@
 struct Shader {
     GLuint progId;
 
-    // attributes
-    GLint vertexAttrLoc;
-
     // uniforms
     GLint projLoc;
     GLint viewLoc;

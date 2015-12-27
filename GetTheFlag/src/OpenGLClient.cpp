@@ -226,14 +226,18 @@ GLuint createShader(GLenum shaderType, const char* filename)
 bool createShaderProgram(Shader* shader, const char* vsShaderFilename, const char* fsShaderFilename)
 {
     shader->progId = glCreateProgram();
+    logOpenGLErrors();
 
     GLuint vs = createShader(GL_VERTEX_SHADER, vsShaderFilename);
     glAttachShader(shader->progId, vs);
+    logOpenGLErrors();
 
     GLuint fs = createShader(GL_FRAGMENT_SHADER, fsShaderFilename);
     glAttachShader(shader->progId, fs);
+    logOpenGLErrors();
 
     glLinkProgram(shader->progId);
+    logOpenGLErrors();
 
     GLint success = GL_TRUE;
     glGetProgramiv(shader->progId, GL_LINK_STATUS, &success);
