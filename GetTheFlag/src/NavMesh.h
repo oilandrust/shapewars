@@ -39,4 +39,9 @@ inline bool isCCW(const Vec3& p0, const Vec3& p1, const Vec3& p2)
     return cross(p1 - p0, p2 - p1).z > 0;
 }
 
+inline bool isCW(const Vec3& p0, const Vec3& p1, const Vec3& p2)
+{
+    return cross(p1 - p0, p2 - p1).z < 0;
+}
+
 #endif /* NavMesh_h */

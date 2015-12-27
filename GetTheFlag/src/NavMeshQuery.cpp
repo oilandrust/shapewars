@@ -220,3 +220,112 @@ bool findPath(MemoryArena* arena, NavMesh* navMesh, const Vec3& start, const Vec
     popArray<uint32>(arena, navMesh->polyCount);
     return false;
 }
+
+void pullString(MemoryArena* arena, NavMesh* mesh, const Vec3& start, const Vec3& end, Path* path)
+{
+    uint32* polys = path->polys;
+    Vec3* pts = path->points;
+    uint32 count = 0;
+
+    pts[count++] = start;
+
+    uint32 polyPathCount = path->polyPathLength;
+    if (polyPathCount == 1) {
+        pts[count++] = end;
+        path->length = count;
+        return;
+    }
+
+    uint32 portalCount = polyPathCount;
+    Vec3* portals = pushArray<Vec3>(arena, 2 * portalCount);
+
+    uint32* mPolys = mesh->polygons;
+    uint32 mvp = mesh->maxVertPerPoly;
+
+    // Collect the portals at each poly boundaries.
+    for (uint32 p = 0; p < path->polyPathLength - 1; p++) {
+        uint32 p0 = polys[p];
+        uint32 p1 = polys[p + 1];
+
+        uint32 i0 = NULL_INDEX;
+        uint32 i1 = NULL_INDEX;
+
+        uint32* poly0 = mPolys + 2 * p0 * mvp;
+        for (uint32 i = 0; i < mvp && poly0[i] != NULL_INDEX; i++) {
+            if (poly0[i + mvp] == p1) {
+                i0 = poly0[i];
+                i1 = nextVertex(poly0, mvp, i);
+                break;
+            }
+        }
+
+        ASSERT(i0 != NULL_INDEX);
+        ASSERT(i1 != NULL_INDEX);
+
+        portals[2 * p] = mesh->vertices[i0];
+        portals[2 * p + 1] = mesh->vertices[i1];
+    }
+    portals[2 * (portalCount - 1)] = end;
+    portals[2 * (portalCount - 1) + 1] = end;
+
+    const Vec3* apex = &start;
+    Vec3* port0 = &portals[0];
+    Vec3* port1 = &portals[1];
+    uint32 port0i = 0;
+    uint32 port1i = 0;
+
+    for (uint32 p = 1; p < portalCount; p++) {
+        Vec3* p0 = portals + 2 * p;
+        Vec3* p1 = portals + 2 * p + 1;
+
+        if (isCCW(*apex, *port0, *p0)) {
+            if (isCW(*apex, *port1, *p0)) {
+                // Narrow the funnel.
+                port0 = p0;
+                port0i = p;
+            }
+            else {
+                pts[count++] = *port1;
+
+                // Restart the search if we haven't reached destination.
+                if (port1i == portalCount - 1) {
+                    break;
+                }
+                apex = port1;
+                port0i = port1i + 1;
+                port0 = portals + 2 * port0i;
+                port1i = port1i + 1;
+                port1 = portals + 2 * port1i + 1;
+                p = port1i;
+                continue;
+            }
+        }
+
+        if (isCW(*apex, *port1, *p1)) {
+            if (isCCW(*apex, *port0, *p1)) {
+                port1 = p1;
+                port1i = p;
+            }
+            else {
+                pts[count++] = *port0;
+
+                // Restart the search if we haven't reached destination.
+                if (port0i == portalCount - 1) {
+                    break;
+                }
+                apex = port0;
+                port1i = port0i + 1;
+                port1 = portals + 2 * port1i + 1;
+                port0i = port0i + 1;
+                port0 = portals + 2 * port0i;
+                p = port0i;
+                continue;
+            }
+        }
+    }
+
+    pts[count++] = end;
+    path->length = count;
+
+    popArray<Vec3>(arena, 2 * portalCount);
+}

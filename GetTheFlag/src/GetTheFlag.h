@@ -1,12 +1,12 @@
 #ifndef GETTHEFLAGH
 #define GETTHEFLAGH
 
+#include <cassert>
 #include <cmath>
+#include <csignal>
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
-#include <cstdio>
-#include <cassert>
-#include <csignal>
 
 #ifdef _MSC_VER
 #define DEBUG_BREAK __debugbreak()
@@ -48,7 +48,6 @@ typedef int int32;
 typedef unsigned int uint32;
 typedef long int64;
 typedef unsigned long uint64;
-
 typedef float real32;
 typedef double real64;
 
@@ -68,9 +67,9 @@ struct RGBA {
 #define PI 3.14159265
 
 #define Kilobytes(Value) ((Value)*1024LL)
-#define Megabytes(Value) (Kilobytes(Value)*1024LL)
-#define Gigabytes(Value) (Megabytes(Value)*1024LL)
-#define Terabytes(Value) (Gigabytes(Value)*1024LL)
+#define Megabytes(Value) (Kilobytes(Value) * 1024LL)
+#define Gigabytes(Value) (Megabytes(Value) * 1024LL)
+#define Terabytes(Value) (Gigabytes(Value) * 1024LL)
 
 template <typename T>
 inline T max(const T& a, const T& b)
@@ -95,64 +94,72 @@ struct MemoryArena {
     uint8* begin;
 };
 
-inline void initializeArena(MemoryArena* arena, void* base, size_t size) {
+inline void initializeArena(MemoryArena* arena, void* base, size_t size)
+{
     arena->begin = (uint8*)base;
     arena->size = size;
     arena->used = 0;
-    for(size_t i = 0; i < size/4; i++) {
+    for (size_t i = 0; i < size / 4; i++) {
         ((int32*)base)[i] = 0xdeadbeef;
     }
 }
 
-inline void* pushSize(MemoryArena* arena, size_t size) {
+inline void* pushSize(MemoryArena* arena, size_t size)
+{
     ASSERT(arena->used + size < arena->size);
     void* ptr = (void*)(arena->begin + arena->used);
     arena->used += size;
     return ptr;
 }
 
-inline void popSize(MemoryArena* arena, size_t size) {
+inline void popSize(MemoryArena* arena, size_t size)
+{
     ASSERT(arena->used - size >= 0);
     arena->used -= size;
 }
 
-template<class T>
-inline T* pushStruct(MemoryArena* arena) {
+template <class T>
+inline T* pushStruct(MemoryArena* arena)
+{
     return (T*)pushSize(arena, sizeof(T));
 }
 
-template<class T>
-inline T* pushStructZeroed(MemoryArena* arena) {
+template <class T>
+inline T* pushStructZeroed(MemoryArena* arena)
+{
     T* ptr = (T*)pushSize(arena, sizeof(T));
     memset(ptr, 0, sizeof(T));
     return ptr;
 }
 
-template<class T>
-inline T* pushArray(MemoryArena* arena, size_t count) {
-    return (T*)pushSize(arena, count*sizeof(T));
+template <class T>
+inline T* pushArray(MemoryArena* arena, size_t count)
+{
+    return (T*)pushSize(arena, count * sizeof(T));
 }
 
-template<class T>
-inline T* pushArrayZeroed(MemoryArena* arena, size_t count) {
-    T* ptr = (T*)pushSize(arena, count*sizeof(T));
-    memset(ptr, 0, sizeof(T)*count);
+template <class T>
+inline T* pushArrayZeroed(MemoryArena* arena, size_t count)
+{
+    T* ptr = (T*)pushSize(arena, count * sizeof(T));
+    memset(ptr, 0, sizeof(T) * count);
     return ptr;
 }
 
-template<class T>
-inline T* pushArrayValue(MemoryArena* arena, size_t count, uint8 val) {
-    T* ptr = (T*)pushSize(arena, count*sizeof(T));
-    memset(ptr, val, sizeof(T)*count);
+template <class T>
+inline T* pushArray(MemoryArena* arena, size_t count, T val)
+{
+    T* ptr = (T*)pushSize(arena, count * sizeof(T));
+    for (uint32 i = 0; i < count; i++) {
+        ptr[i] = val;
+    }
     return ptr;
 }
 
-template<class T>
-inline void popArray(MemoryArena* arena, size_t count) {
-    popSize(arena, count*sizeof(T));
+template <class T>
+inline void popArray(MemoryArena* arena, size_t count)
+{
+    popSize(arena, count * sizeof(T));
 }
-
-// TODO: introduce scoped array.
-
 
 #endif

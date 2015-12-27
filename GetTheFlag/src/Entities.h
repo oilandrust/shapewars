@@ -6,8 +6,7 @@
 
 struct Input;
 struct Level;
-
-#define MAX_AI_PATH_LENGTH 512
+struct Path;
 
 struct Entity {
     Vec3 position;
@@ -15,17 +14,18 @@ struct Entity {
 };
 
 struct AIEntity {
-    Vec3 target;
     Entity entity;
+    Path* path;
+    uint32 currentTarget;
 };
 
-void updateAIEntity(AIEntity* entity);
+void updateAIEntity(AIEntity* entity, real32 dt);
 
 struct NavMesh;
 
-void setAIEntityTarget(MemoryArena* arena, NavMesh* navMesh, AIEntity* aiEntity, const Vec3& target);
+void setAIEntityPath(AIEntity* aiEntity, Path* path);
 
-void updateEntity(Entity* entity);
+void updateEntity(Entity* entity, real32 dt);
 
 struct Entities {
     Entity bots[128];

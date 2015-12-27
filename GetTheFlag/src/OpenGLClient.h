@@ -12,8 +12,6 @@
 #include <GL/glew.h>
 #include <OpenGL/OpenGL.h>
 
-#define logOpenGLErrors() _logOpenGLErrors(__FILE__, __LINE__)
-
 struct Shader {
     GLuint progId;
 
@@ -35,13 +33,6 @@ struct Shader {
 #define COL_ATTRIB_LOC 2
 #define UV_ATTRIB_LOC 3
 
-struct Mesh2 {
-    GLuint vaoId;
-    GLuint vboId;
-
-    Vec2* positions;
-};
-
 struct Texture {
     GLuint texId;
     uint32 width;
@@ -50,21 +41,44 @@ struct Texture {
     void* data;
 };
 
-void _logOpenGLErrors(const char* file, int32 line);
-
+/**
+ * Textue
+ */
 void loadTexture(Texture* tex, const char* filename);
 
 bool createTexture(Texture* texture, GLint format);
 
 void updateTextureData(Texture* texture, GLint format, void* data);
 
+/**
+ * Shader
+ */
 bool createShaderProgram(Shader* shader, const char* vsShaderFilename, const char* fsShaderFilename);
 
-GLuint create3DIndexedVertexArray(Mesh3D* mesh);
-
-GLuint create3DVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount);
-
 void printShaderLog(GLuint shader);
+
 void printProgramLog(GLuint program);
+
+/**
+ * Mesh
+ */
+GLuint createBufferObject(Vec3* data, uint32 count, GLenum usage = GL_STATIC_DRAW);
+
+void updateBufferObject(GLuint bufferID, Vec3* data, uint32 count);
+
+void bindAttribBuffer(GLuint buffer, GLuint loc, uint32 size);
+
+GLuint createVertexArray(Vec3* data, uint32 count);
+
+GLuint createIndexedVertexArray(Mesh3D* mesh);
+
+GLuint createIndexedVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount);
+
+/**
+ * Log
+ */
+#define logOpenGLErrors() _logOpenGLErrors(__FILE__, __LINE__)
+
+void _logOpenGLErrors(const char* file, int32 line);
 
 #endif

@@ -2,8 +2,8 @@
 #define RENDERERH
 
 #include "GetTheFlag.h"
-#include "Vec2.h"
 #include "OpenGLClient.h"
+#include "Vec2.h"
 
 struct Renderer {
     Shader flatDiffShader;
@@ -16,6 +16,5 @@ void intializeRendererRessources(Renderer* renderer);
 void rendererBeginFrame(Renderer* renderer);
 
 void reloadShaders(Renderer* renderer);
-
 
 #endif

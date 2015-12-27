@@ -57,15 +57,22 @@ void loadTexture(Texture* tex, const char* filename)
     createTexture(tex, GL_RGBA);
 }
 
-static GLuint createBufferObject(Vec3* data, uint32 count)
+GLuint createBufferObject(Vec3* data, uint32 count, GLenum mode)
 {
     GLuint boId;
     glGenBuffers(1, &boId);
     glBindBuffer(GL_ARRAY_BUFFER, boId);
-    glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vec3), data, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vec3), data, mode);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     return boId;
+}
+
+void updateBufferObject(GLuint bufferID, Vec3* data, uint32 count)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, bufferID);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, count * sizeof(Vec3), data);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 static GLuint createBufferObject(Vec2* data, uint32 count)
@@ -91,14 +98,14 @@ static GLuint createIndexBufferObject(uint32* data, uint32 count)
     return ibo;
 }
 
-static void bindAttribBuffer(GLuint buffer, GLuint loc, uint32 size)
+void bindAttribBuffer(GLuint buffer, GLuint loc, uint32 size)
 {
     glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glEnableVertexAttribArray(loc);
     glVertexAttribPointer(loc, size, GL_FLOAT, GL_FALSE, 0, 0);
 }
 
-GLuint create3DIndexedVertexArray(Mesh3D* mesh)
+GLuint createIndexedVertexArray(Mesh3D* mesh)
 {
     //Create VBO
     GLuint vbo, nbo, cbo, tbo;
@@ -139,7 +146,25 @@ GLuint create3DIndexedVertexArray(Mesh3D* mesh)
     return vao;
 }
 
-GLuint create3DVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount)
+GLuint createVertexArray(Vec3* data, uint32 count)
+{
+    //Create VBO
+    GLuint vbo = createBufferObject(data, count);
+
+    // Create the vao
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    bindAttribBuffer(vbo, POS_ATTRIB_LOC, 3);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    return vao;
+}
+
+GLuint createIndexedVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount)
 {
     //Create VBO
     GLuint vbo = createBufferObject(data, count);

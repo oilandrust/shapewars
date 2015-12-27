@@ -3,23 +3,40 @@
 #include "Level.h"
 #include "NavMeshQuery.h"
 
-void setAIEntityTarget(MemoryArena* arena, NavMesh* navMesh, AIEntity* aiEntity, const Vec3& target) {
-    aiEntity->target = target;
-    Vec3 offset = aiEntity->target - aiEntity->entity.position;
-    aiEntity->entity.velocity = 0.3*normalize(offset);
-    
-    
+void setAIEntityPath(AIEntity* aiEntity, Path* path)
+{
+    aiEntity->path = path;
+    aiEntity->currentTarget = 0;
 }
 
-void updateAIEntity(AIEntity* aiEntity) {
-    Vec3 offset = aiEntity->target - aiEntity->entity.position;
-    if (length(offset) < 0.5) {
-        aiEntity->entity.velocity = Vec3(0);
+void updateAIEntity(AIEntity* aiEntity, real32 dt)
+{
+    Path* path = aiEntity->path;
+    if (path->length == 0) {
+        return;
+    }
+
+    Vec3 target = path->points[aiEntity->currentTarget];
+    Vec3 pos = aiEntity->entity.position;
+
+    Vec3 dir = target - pos;
+
+    if (sqrLength(dir) < 0.1) {
+        aiEntity->currentTarget++;
+        if (aiEntity->currentTarget > path->length - 1) {
+            path->length = 0;
+            aiEntity->currentTarget = 0;
+            aiEntity->entity.velocity = Vec3(0, 0, 0);
+        }
+    }
+    else {
+        aiEntity->entity.velocity = 5 * normalize(dir);
     }
 }
 
-void updateEntity(Entity* entity) {
-    entity->position += entity->velocity;
+void updateEntity(Entity* entity, real32 dt)
+{
+    entity->position += dt * entity->velocity;
 }
 
 /*
@@ -124,7 +141,7 @@ void initializeCameraPan(CameraPan* camera)
     camera->velocity = { 0, 0 };
     camera->accel = { 0, 0 };
     camera->drag = 10.0f;
-    
+
     // acceleration and drag in m/s;
     camera->drag = 20.0f;
     camera->acc = 200.0f;
@@ -148,14 +165,13 @@ void updateCameraPan(CameraPan* camera, Input* input, Level* level, real32 dt)
     if (std::abs(accel.x) > 0.0f || std::abs(accel.y) > 0.0f) {
         accel = normalize(accel);
     }
-    
+
     Vec3 acceleration = camera->acc * accel - camera->drag * camera->velocity;
     camera->velocity += acceleration * dt;
-    
+
     camera->target = camera->target + camera->velocity * dt;
     camera->target = min(camera->target, Vec3(level->width, level->height, 0));
 
     Vec3 targetToCamOffset(.0f, -10, 30);
     camera->position = camera->target + targetToCamOffset;
-
 }

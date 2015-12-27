@@ -12,23 +12,26 @@ struct Vec2 {
         , y(y_)
     {
     }
+
     Vec2(real32 x_)
         : x(x_)
         , y(x_)
     {
     }
+
     Vec2() {}
 };
 
 struct Vec2i {
     int32 x;
     int32 y;
-    
+
     Vec2i(int32 x_, int32 y_)
-    : x(x_)
-    , y(y_)
+        : x(x_)
+        , y(y_)
     {
     }
+
     Vec2i() {}
 };
 

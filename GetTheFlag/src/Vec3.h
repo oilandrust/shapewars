@@ -15,18 +15,21 @@ struct Vec3 {
         , z(z_)
     {
     }
+
     Vec3(real32 x_)
         : x(x_)
         , y(x_)
         , z(x_)
     {
     }
+
     Vec3(const Vec2& xy, real32 z_)
         : x(xy.x)
         , y(xy.y)
         , z(z_)
     {
     }
+
     Vec3() {}
 };
 

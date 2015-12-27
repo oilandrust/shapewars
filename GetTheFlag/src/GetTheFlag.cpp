@@ -20,6 +20,8 @@
 
 // TODO: 7 days
 // NavMesh navigation
+// Rendering refactoring
+// Debug refactoring
 // Mouse unproject
 // Cleanup
 // Bigger level
@@ -159,7 +161,7 @@ int main()
     for (uint32 i = 0; i < contours.count; i++) {
         contourMeshes[i].vCount = contours.contours[i].count;
         contourMeshes[i].positions = contours.contours[i].vertices;
-        lineVaos[i] = create3DVertexArray(contourMeshes[i].positions,
+        lineVaos[i] = createIndexedVertexArray(contourMeshes[i].positions,
             contourMeshes[i].vCount, contourMeshes[i].indices, 3 * contourMeshes[i].fCount);
     }
 
@@ -167,7 +169,7 @@ int main()
     triangulateContours(&memoryArena, &contours, triangulatedCountours);
     GLuint* contourMeshVaos = pushArray<GLuint>(&memoryArena, contours.count);
     for (uint32 i = 0; i < contours.count; i++) {
-        contourMeshVaos[i] = create3DIndexedVertexArray(&triangulatedCountours[i]);
+        contourMeshVaos[i] = createIndexedVertexArray(&triangulatedCountours[i]);
     }
 
     NavMesh navMesh;
@@ -175,10 +177,10 @@ int main()
     buildNavMesh(&memoryArena, &contours, triangulatedCountours, &navMesh, &dual);
     GLuint* navVaos = pushArray<GLuint>(&memoryArena, navMesh.polyCount);
     for (uint32 i = 0; i < navMesh.polyCount; i++) {
-        navVaos[i] = create3DVertexArray(navMesh.vertices, navMesh.vertCount,
+        navVaos[i] = createIndexedVertexArray(navMesh.vertices, navMesh.vertCount,
             navMesh.polygons + 2 * i * navMesh.maxVertPerPoly, navMesh.maxVertPerPoly);
     }
-    GLuint dualVao = create3DVertexArray(dual.vertices, dual.vertCount, dual.indices, dual.indCount);
+    GLuint dualVao = createIndexedVertexArray(dual.vertices, dual.vertCount, dual.indices, dual.indCount);
 
     struct Debug {
         bool showDistanceField = false;
@@ -195,9 +197,21 @@ int main()
     camera.target = Vec3(0.5 * MAP_WIDTH, 0.3 * MAP_HEIGHT, 0);
 
     AIEntity bot;
+    bot.entity.position = Vec3(1, 1, 0);
     Path path;
     path.polyPathLength = 0;
     path.polys = pushArray<uint32>(&memoryArena, navMesh.polyCount);
+    path.length = 0;
+    path.points = pushArray<Vec3>(&memoryArena, navMesh.polyCount + 2);
+    setAIEntityPath(&bot, &path);
+
+    GLuint pathVbo = createBufferObject(path.points, navMesh.polyCount + 2, GL_DYNAMIC_DRAW);
+    GLuint pathVao;
+    glGenVertexArrays(1, &pathVao);
+    glBindVertexArray(pathVao);
+    bindAttribBuffer(pathVbo, POS_ATTRIB_LOC, 3);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
     ViewCamera viewCamera;
     real32 aspect = (real32)ScreenWidth / (real32)ScreenHeight;
@@ -205,11 +219,11 @@ int main()
 
     Mesh3D boxMesh;
     createCube(&memoryArena, &boxMesh);
-    GLuint boxVao = create3DIndexedVertexArray(&boxMesh);
+    GLuint boxVao = createIndexedVertexArray(&boxMesh);
 
     Mesh3D planeMesh;
     createPlane(&memoryArena, &planeMesh);
-    GLuint planeVao = create3DIndexedVertexArray(&planeMesh);
+    GLuint planeVao = createIndexedVertexArray(&planeMesh);
 
     Input input;
     memset(&input, 0, sizeof(input));
@@ -284,11 +298,12 @@ int main()
 
         if (input.keyStates[FIRE1].clicked) {
             findPath(&memoryArena, &navMesh, bot.entity.position, groundPos, &path);
-            setAIEntityTarget(&memoryArena, &navMesh, &bot, groundPos);
+            pullString(&memoryArena, &navMesh, bot.entity.position, groundPos, &path);
+            updateBufferObject(pathVbo, path.points, path.length);
         }
 
-        updateAIEntity(&bot);
-        updateEntity(&bot.entity);
+        updateAIEntity(&bot, dt);
+        updateEntity(&bot.entity, dt);
 
         // Render Game
         {
@@ -334,7 +349,7 @@ int main()
                     uint32 val = level.tiles[i + j * MAP_HEIGHT];
                     if (val) {
                         Vec3 pos = Vec3(i + 0.5f, MAP_HEIGHT - j - 0.5f, val - 0.5);
-                        drawBox(flatDiffShader, &boxMesh, pos, Vec3(1.f, 1.f, 1.f));
+                        drawBox(flatDiffShader, &boxMesh, pos, Vec3(0.75f, 0.75f, 1.f));
                     }
                 }
             }
@@ -443,6 +458,13 @@ int main()
                     uint32 iCount = polyVertCount(&navMesh, path.polys[p]);
                     glBindVertexArray(navVaos[path.polys[p]]);
                     glDrawElements(GL_LINE_LOOP, iCount, GL_UNSIGNED_INT, 0);
+                    logOpenGLErrors();
+                }
+
+                if (path.length > 0) {
+                    glBindVertexArray(pathVao);
+                    glDrawArrays(GL_LINE_STRIP, 0, path.length);
+                    logOpenGLErrors();
                 }
             }
 #endif

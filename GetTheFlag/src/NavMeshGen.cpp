@@ -906,7 +906,7 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
 
     // Vertices of the final mesh without duplication.
     Vec3* meshVerts = pushArray<Vec3>(arena, totalVCount);
-    uint32* meshPolys = pushArrayValue<uint32>(arena, 2 * maxVertsPerPoly * totalTriCount, 0xff);
+    uint32* meshPolys = pushArray<uint32>(arena, 2 * maxVertsPerPoly * totalTriCount, NULL_INDEX);
     mesh->vertCount = 0;
     mesh->vertices = meshVerts;
     mesh->polyCount = 0;
