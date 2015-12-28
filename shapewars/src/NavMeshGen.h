@@ -3,10 +3,10 @@
 #define NavMeshGen_h
 
 #include "Debug.h"
-#include "GetTheFlag.h"
 #include "Level.h"
 #include "NavMesh.h"
 #include "OpenGLClient.h"
+#include "ShapeWars.h"
 
 struct LevelRaster {
     uint8* raster;

@@ -1,7 +1,7 @@
 #ifndef LEVELH
 #define LEVELH
 
-#include "GetTheFlag.h"
+#include "ShapeWars.h"
 #include "Vec2.h"
 #include "Entities.h"
 

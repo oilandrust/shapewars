@@ -1,7 +1,7 @@
 #ifndef VEC3H
 #define VEC3H
 
-#include "GetTheFlag.h"
+#include "ShapeWars.h"
 #include "Vec2.h"
 
 struct Vec3 {

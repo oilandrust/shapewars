@@ -1,7 +1,7 @@
 #ifndef MAT3H
 #define MAT3H
 
-#include "GetTheFlag.h"
+#include "ShapeWars.h"
 
 struct Mat3 {
     real32 data[9];

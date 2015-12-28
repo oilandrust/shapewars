@@ -9,8 +9,8 @@
 #ifndef NavMeshQuery_h
 #define NavMeshQuery_h
 
-#include "GetTheFlag.h"
 #include "NavMesh.h"
+#include "ShapeWars.h"
 
 uint32 findContainingPolygon(NavMesh* navMesh, const Vec3& point);
 

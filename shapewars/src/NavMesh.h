@@ -9,7 +9,7 @@
 #ifndef NavMesh_h
 #define NavMesh_h
 
-#include "GetTheFlag.h"
+#include "ShapeWars.h"
 #include "Vec3.h"
 
 #define NULL_INDEX 0xffffffff

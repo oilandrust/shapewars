@@ -1,7 +1,7 @@
 #ifndef MAT4H
 #define MAT4H
 
-#include "GetTheFlag.h"
+#include "ShapeWars.h"
 
 #include "Vec3.h"
 

@@ -1,7 +1,7 @@
 #ifndef VEC2H
 #define VEC2H
 
-#include "GetTheFlag.h"
+#include "ShapeWars.h"
 
 struct Vec2 {
     real32 x;

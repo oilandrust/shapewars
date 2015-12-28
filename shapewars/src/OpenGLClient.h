@@ -1,7 +1,7 @@
 #ifndef OPENGLCLIENTH
 #define OPENGLCLIENTH
 
-#include "GetTheFlag.h"
+#include "ShapeWars.h"
 #include "Mesh.h"
 #include "Vec2.h"
 #include "Vec3.h"

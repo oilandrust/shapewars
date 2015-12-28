@@ -1,10 +1,10 @@
 #ifndef RENDERERH
 #define RENDERERH
 
-#include "GetTheFlag.h"
 #include "Mat3.h"
 #include "Mat4.h"
 #include "OpenGLClient.h"
+#include "ShapeWars.h"
 #include "Vec2.h"
 
 enum RenderPieceType {
