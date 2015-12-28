@@ -133,10 +133,12 @@ void updatePlayer(Player* player, Input* input, Level* level, real32 dt)
  * Camera
  */
 
-void initializeCameraPan(CameraPan* camera)
+void initializeCameraPan(CameraPan* camera, const Vec2& levelBounds)
 {
     Vec3 targetToCamOffset(.0f, -0.9 * 30, 20);
     camera->position = camera->target + targetToCamOffset;
+
+    camera->target = Vec3(0.5 * levelBounds.x, 0.3 * levelBounds.y, 0);
 
     camera->velocity = { 0, 0 };
     camera->accel = { 0, 0 };
@@ -150,16 +152,16 @@ void initializeCameraPan(CameraPan* camera)
 void updateCameraPan(CameraPan* camera, Input* input, Level* level, real32 dt)
 {
     Vec3 accel = Vec3(0, 0, 0);
-    if (input->keyStates[UP].held) {
+    if (input->keyStates[UP].held || input->mouseY == 0) {
         accel.y = 1.0f;
     }
-    if (input->keyStates[DOWN].held) {
+    if (input->keyStates[DOWN].held || input->mouseY == camera->screenHeight - 1) {
         accel.y = -1.0f;
     }
-    if (input->keyStates[LEFT].held) {
+    if (input->keyStates[LEFT].held || input->mouseX == 0) {
         accel.x = -1.0f;
     }
-    if (input->keyStates[RIGHT].held) {
+    if (input->keyStates[RIGHT].held || input->mouseX == camera->screenWidth - 1) {
         accel.x = 1.0f;
     }
     if (std::abs(accel.x) > 0.0f || std::abs(accel.y) > 0.0f) {
@@ -171,6 +173,7 @@ void updateCameraPan(CameraPan* camera, Input* input, Level* level, real32 dt)
 
     camera->target = camera->target + camera->velocity * dt;
     camera->target = min(camera->target, Vec3(level->width, level->height, 0));
+    camera->target = max(camera->target, Vec3(0, 0, 0));
 
     Vec3 targetToCamOffset(.0f, -10, 30);
     camera->position = camera->target + targetToCamOffset;

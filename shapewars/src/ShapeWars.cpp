@@ -157,8 +157,9 @@ int main()
     debug.navMesh = &navMesh;
 
     CameraPan camera;
-    initializeCameraPan(&camera);
-    camera.target = Vec3(0.5 * MAP_WIDTH, 0.3 * MAP_HEIGHT, 0);
+    initializeCameraPan(&camera, Vec2(level.width, level.height));
+    camera.screenWidth = ScreenWidth;
+    camera.screenHeight = ScreenHeight;
 
     ViewCamera viewCamera;
     real32 aspect = (real32)ScreenWidth / (real32)ScreenHeight;
@@ -204,8 +205,8 @@ int main()
 
         // Update the input state
         processInput(&input);
-
         debugProcessInput(&debug, &input);
+
         // Reload the shader
         if (input.keyStates[DEBUG_RELOAD_SHADERS].clicked) {
             reloadShaders(&renderer);
@@ -235,20 +236,20 @@ int main()
         Mat3 identity3;
         identity(identity3);
 
-        Vec3 groundSize(MAP_WIDTH, MAP_HEIGHT, 0.0f);
-        Vec3 groundCenter(0.5f * MAP_WIDTH, 0.5f * MAP_HEIGHT, 0.f);
+        Vec3 groundSize(level.width, level.height, 0.0f);
+        Vec3 groundCenter(0.5f * level.width, 0.5f * level.height, 0.f);
         pushMeshPiece(&renderer, &renderer.flatDiffShader,
             planeVao, 3 * planeMesh.fCount,
             identity3, groundSize, groundCenter, Vec3(.5f));
 
         // Draw Walls
         Vec3 boxColor = Vec3(0.75);
-        for (uint32 j = 0; j < MAP_HEIGHT; j++) {
-            for (uint32 i = 0; i < MAP_WIDTH; i++) {
-                uint32 val = level.tiles[i + j * MAP_HEIGHT];
+        for (uint32 j = 0; j < level.width; j++) {
+            for (uint32 i = 0; i < level.height; i++) {
+                uint32 val = level.tiles[i + j * level.width];
                 if (val) {
                     Vec3 boxSize = Vec3(0.75f, 0.75f, 1.f);
-                    Vec3 pos = Vec3(i + 0.5f, MAP_HEIGHT - j - 0.5f, val - 0.5);
+                    Vec3 pos = Vec3(i + 0.5f, level.height - j - 0.5f, val - 0.5);
 
                     pushMeshPiece(&renderer, &renderer.flatDiffShader,
                         boxVao, 3 * boxMesh.fCount,

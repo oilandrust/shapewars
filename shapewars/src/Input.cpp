@@ -25,6 +25,8 @@ void processInput(Input* input)
         case SDL_MOUSEMOTION: {
             input->mouseX = event.motion.x;
             input->mouseY = event.motion.y;
+            input->mousedX = event.motion.xrel;
+            input->mousedY = event.motion.yrel;
         } break;
 
         case SDL_QUIT: {

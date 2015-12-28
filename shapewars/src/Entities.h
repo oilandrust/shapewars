@@ -38,10 +38,17 @@ struct CameraPan {
     Vec3 velocity;
     Vec3 accel;
 
+    int32 screenWidth;
+    int32 screenHeight;
+
     // Physics constants.
     real32 drag;
     real32 acc;
 };
+
+void initializeCameraPan(CameraPan* camera, const Vec2& levelBounds);
+
+void updateCameraPan(CameraPan* camera, Input* input, Level* level, real32 dt);
 
 struct Player {
     Vec3 position;
@@ -59,9 +66,5 @@ struct Player {
 void initializePlayer(Player* player);
 
 void updatePlayer(Player* player, Input* input, Level* level, real32 dt);
-
-void initializeCameraPan(CameraPan* camera);
-
-void updateCameraPan(CameraPan* camera, Input* input, Level* level, real32 dt);
 
 #endif

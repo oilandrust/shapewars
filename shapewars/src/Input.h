@@ -36,6 +36,8 @@ struct Input {
 
     int32 mouseX;
     int32 mouseY;
+    int32 mousedX;
+    int32 mousedY;
 };
 
 void initializeInput(Input* input);
