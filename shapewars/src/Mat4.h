@@ -24,6 +24,8 @@ void perspective(Mat4& mat, real32 fovy, real32 aspect, real32 near, real32 far)
 
 void lookAt(Mat4& mat, const Vec3& position, const Vec3& target, const Vec3& up_);
 
+void lookAt(Mat4& mat, const Vec3& right, const Vec3& up, const Vec3& forward, const Vec3& position);
+
 void inverseTransform(Mat4& m);
 
 #endif

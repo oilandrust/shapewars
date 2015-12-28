@@ -32,11 +32,16 @@ void perspective(Mat4& mat, real32 fovy, real32 aspect, real32 near, real32 far)
 
 void lookAt(Mat4& mat, const Vec3& position, const Vec3& target, const Vec3& up_)
 {
-    memset(mat.data, 0, 16 * sizeof(real32));
-
     Vec3 forward = normalize(target - position);
     Vec3 right = normalize(cross(forward, up_));
     Vec3 up = cross(right, forward);
+
+    lookAt(mat, right, up, forward, position);
+}
+
+void lookAt(Mat4& mat, const Vec3& right, const Vec3& up, const Vec3& forward, const Vec3& position)
+{
+    memset(mat.data, 0, 16 * sizeof(real32));
 
     mat.data[0] = right.x;
     mat.data[4] = right.y;

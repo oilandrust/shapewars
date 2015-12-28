@@ -20,6 +20,21 @@ void processInput(Input* input)
 
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+
+        switch (event.type) {
+        case SDL_MOUSEMOTION: {
+            input->mouseX = event.motion.x;
+            input->mouseY = event.motion.y;
+        } break;
+
+        case SDL_QUIT: {
+            input->keyStates[QUIT].clicked = true;
+        } break;
+
+        default: {
+        } break;
+        }
+
         if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
             if (event.key.keysym.sym == SDLK_UP) {
                 processKeyEvent(input, &event, UP);
@@ -65,20 +80,6 @@ void processInput(Input* input)
             }
             else if (event.key.keysym.sym == SDLK_p) {
                 processKeyEvent(input, &event, DEBUG_SHOW_PATH);
-            }
-
-            switch (event.type) {
-            case SDL_MOUSEMOTION: {
-                input->mouseX = event.motion.x;
-                input->mouseY = event.motion.y;
-            } break;
-
-            case SDL_QUIT: {
-                input->keyStates[QUIT].clicked = true;
-            } break;
-
-            default: {
-            } break;
             }
         }
     }

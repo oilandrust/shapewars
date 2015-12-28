@@ -20,7 +20,6 @@
 #include "Vec3.h"
 
 // TODO: 7 days
-// Mouse unproject
 // Cleanup
 // Bigger level
 // Debug refactoring 2
@@ -36,7 +35,23 @@
 struct ViewCamera {
     Mat4 projection;
     Mat4 view;
+    Vec3 position;
+    Vec3 forward;
+    Vec3 up;
+    Vec3 right;
+    real32 focalDistance;
+    real32 aspect;
 };
+
+void viewCameraLookAt(ViewCamera* camera, const Vec3& position, const Vec3& target, const Vec3& up)
+{
+    camera->forward = normalize(target - position);
+    camera->right = normalize(cross(camera->forward, up));
+    camera->up = cross(camera->right, camera->forward);
+    camera->position = position;
+
+    lookAt(camera->view, camera->right, camera->up, camera->forward, camera->position);
+}
 
 struct Ray {
     Vec3 origin;
@@ -45,24 +60,20 @@ struct Ray {
 
 Vec3 intersectGround0(const Ray& ray)
 {
-    // (p0 + t n0) . Z = 0
-    // t = -p0.z / n0.z
     real32 t = -ray.origin.z / ray.direction.z;
     return ray.origin + t * ray.direction;
 }
 
-Ray unproject(ViewCamera* camera, Vec2 /*screenPos*/)
+Ray unproject(ViewCamera* camera, const Vec2& screenPos)
 {
     Ray result;
+    result.origin = camera->position;
 
-    result.origin.x = camera->view.data[3];
-    result.origin.y = camera->view.data[7];
-    result.origin.z = camera->view.data[11];
+    Vec3 cameraMousePos = camera->aspect * screenPos.x * camera->right
+        + screenPos.y * camera->up
+        + camera->focalDistance * camera->forward;
 
-    Vec3 forward = Vec3(-camera->view.data[2],
-        -camera->view.data[6],
-        -camera->view.data[10]);
-    result.direction = forward;
+    result.direction = normalize(cameraMousePos);
 
     return result;
 }
@@ -149,6 +160,13 @@ int main()
     initializeCameraPan(&camera);
     camera.target = Vec3(0.5 * MAP_WIDTH, 0.3 * MAP_HEIGHT, 0);
 
+    ViewCamera viewCamera;
+    real32 aspect = (real32)ScreenWidth / (real32)ScreenHeight;
+    real32 fovy = 40.f;
+    perspective(viewCamera.projection, fovy, aspect, 1.f, 200.f);
+    viewCamera.focalDistance = 1.f / tanf(.5f * fovy * PI / 180.f);
+    viewCamera.aspect = aspect;
+
     AIEntity bot;
     bot.entity.position = Vec3(1, 1, 0);
 
@@ -160,10 +178,6 @@ int main()
     debug.path = &path;
     debug.pathVbo = createBufferObject(path.points, navMesh.polyCount + 2, GL_DYNAMIC_DRAW);
     debug.pathVao = createVertexArray(debug.pathVbo);
-
-    ViewCamera viewCamera;
-    real32 aspect = (real32)ScreenWidth / (real32)ScreenHeight;
-    perspective(viewCamera.projection, 40.f, aspect, 1.f, 200.f);
 
     Input input;
     memset(&input, 0, sizeof(input));
@@ -198,9 +212,10 @@ int main()
         }
 
         updateCameraPan(&camera, &input, &level, dt);
+        viewCameraLookAt(&viewCamera, camera.position, camera.target, Vec3(0, 0, 1));
 
-        Vec2 mousePos(input.mouseX / ScreenWidth - 0.5,
-            input.mouseY / ScreenHeight - 0.5);
+        Vec2 mousePos(2 * (real32)input.mouseX / ScreenWidth - 1.f,
+            1.f - 2 * (real32)input.mouseY / ScreenHeight);
 
         Ray mouseRay = unproject(&viewCamera, mousePos);
         Vec3 groundPos = intersectGround0(mouseRay);
@@ -255,9 +270,6 @@ int main()
         debugDraw(&debug, &renderer);
 
         // Set the view Matrix
-        identity(viewCamera.view);
-        lookAt(viewCamera.view, camera.position, camera.target, Vec3(0, 0, 1));
-
         Mat4 view = viewCamera.view;
         inverseTransform(view);
 
