@@ -1,7 +1,7 @@
 #ifndef INPUTH
 #define INPUTH
 
-#include "GetTheFlag.h"
+#include "ShapeWars.h"
 #include <SDL.h>
 
 struct KeyState {

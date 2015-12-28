@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.6)
-project(GetTheFlag)
+project(ShapeWars)
 
 # Use our modified FindSDL2* modules
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${GetTheFlag_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${ShapeWars_SOURCE_DIR}/cmake")
 # Set an output directory for our binaries
-set(BIN_DIR ${GetTheFLag_SOURCE_DIR}/bin)
+set(BIN_DIR ${ShapeWars_SOURCE_DIR}/bin)
 
 # Bump up warning levels appropriately for clang, gcc & msvc
 # Also set debug/optimization flags depending on the build type. IDE users choose this when
@@ -33,4 +33,4 @@ include_directories(${OPENGL_INCLUDE_DIR})
 
 include_directories(stb)
 
-add_subdirectory(GetTheFlag)
+add_subdirectory(shapewars)

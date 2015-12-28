@@ -1,7 +1,7 @@
-project(GetTheFlag)
-add_executable(GetTheFlag
-	src/GetTheFlag.cpp
-	src/GetTheFlag.h
+project(ShapeWars)
+add_executable(ShapeWars
+	src/ShapeWars.cpp
+	src/ShapeWars.h
 	src/Input.h
 	src/Input.cpp
 	src/Level.h
@@ -33,8 +33,8 @@ add_executable(GetTheFlag
 
 	src/stb_image.cpp
 )
-target_link_libraries(GetTheFlag ${SDL2_LIBRARY})
-target_link_libraries(GetTheFlag ${GLEW_LIBRARY})
-target_link_libraries(GetTheFlag ${OPENGL_LIBRARIES})
+target_link_libraries(ShapeWars ${SDL2_LIBRARY})
+target_link_libraries(ShapeWars ${GLEW_LIBRARY})
+target_link_libraries(ShapeWars ${OPENGL_LIBRARIES})
 
-install(TARGETS GetTheFlag RUNTIME DESTINATION ${BIN_DIR})
+install(TARGETS ShapeWars RUNTIME DESTINATION ${BIN_DIR})

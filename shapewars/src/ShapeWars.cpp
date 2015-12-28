@@ -7,7 +7,6 @@
 #include "Animation.h"
 #include "Debug.h"
 #include "Entities.h"
-#include "GetTheFlag.h"
 #include "Input.h"
 #include "Level.h"
 #include "Mat3.h"
@@ -17,6 +16,7 @@
 #include "NavMeshQuery.h"
 #include "OpenGLClient.h"
 #include "Renderer.h"
+#include "ShapeWars.h"
 #include "Vec3.h"
 
 // TODO: 7 days
