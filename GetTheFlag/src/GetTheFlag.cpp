@@ -5,6 +5,7 @@
 #include <SDL_opengl.h>
 
 #include "Animation.h"
+#include "Debug.h"
 #include "Entities.h"
 #include "GetTheFlag.h"
 #include "Input.h"
@@ -19,12 +20,10 @@
 #include "Vec3.h"
 
 // TODO: 7 days
-// NavMesh navigation
-// Rendering refactoring
-// Debug refactoring
 // Mouse unproject
 // Cleanup
 // Bigger level
+// Debug refactoring 2
 // Fog of war
 // Minimap
 // Igui
@@ -33,10 +32,6 @@
 // Multiple entities
 
 #define DEVENV
-
-#include <cerrno>
-#include <mach-o/dyld.h>
-#include <unistd.h>
 
 struct ViewCamera {
     Mat4 projection;
@@ -132,78 +127,6 @@ int main()
     level.height = MAP_HEIGHT;
     level.tiles = level2;
 
-    // Init the nav mesh.
-    LevelRaster raster{ level.tiles, level.width, level.height };
-    DistanceField distanceField;
-    genDistanceField(&memoryArena, &raster, &distanceField);
-
-    RegionIdMap regionIds;
-    genRegions(&memoryArena, &distanceField, &regionIds);
-
-    ContourSet contours;
-    genContours(&memoryArena, &regionIds, &contours);
-
-    Mesh3D* contourMeshes = pushArrayZeroed<Mesh3D>(&memoryArena, contours.count);
-    GLuint* lineVaos = pushArray<GLuint>(&memoryArena, contours.count);
-    for (uint32 i = 0; i < contours.count; i++) {
-        contourMeshes[i].vCount = contours.contours[i].count;
-        contourMeshes[i].positions = contours.contours[i].vertices;
-        lineVaos[i] = createIndexedVertexArray(contourMeshes[i].positions,
-            contourMeshes[i].vCount, contourMeshes[i].indices, 3 * contourMeshes[i].fCount);
-    }
-
-    Mesh3D* triangulatedCountours = pushArray<Mesh3D>(&memoryArena, contours.count);
-    triangulateContours(&memoryArena, &contours, triangulatedCountours);
-    GLuint* contourMeshVaos = pushArray<GLuint>(&memoryArena, contours.count);
-    for (uint32 i = 0; i < contours.count; i++) {
-        contourMeshVaos[i] = createIndexedVertexArray(&triangulatedCountours[i]);
-    }
-
-    NavMesh navMesh;
-    DualMesh dual;
-    buildNavMesh(&memoryArena, &contours, triangulatedCountours, &navMesh, &dual);
-    GLuint* navVaos = pushArray<GLuint>(&memoryArena, navMesh.polyCount);
-    for (uint32 i = 0; i < navMesh.polyCount; i++) {
-        navVaos[i] = createIndexedVertexArray(navMesh.vertices, navMesh.vertCount,
-            navMesh.polygons + 2 * i * navMesh.maxVertPerPoly, navMesh.maxVertPerPoly);
-    }
-    GLuint dualVao = createIndexedVertexArray(dual.vertices, dual.vertCount, dual.indices, dual.indCount);
-
-    struct Debug {
-        bool showDistanceField = false;
-        bool showRegions = false;
-        bool showContours = false;
-        bool showTriRegions = false;
-        bool showNavMesh = false;
-        bool showDual = false;
-    };
-    Debug debug;
-
-    CameraPan camera;
-    initializeCameraPan(&camera);
-    camera.target = Vec3(0.5 * MAP_WIDTH, 0.3 * MAP_HEIGHT, 0);
-
-    AIEntity bot;
-    bot.entity.position = Vec3(1, 1, 0);
-    Path path;
-    path.polyPathLength = 0;
-    path.polys = pushArray<uint32>(&memoryArena, navMesh.polyCount);
-    path.length = 0;
-    path.points = pushArray<Vec3>(&memoryArena, navMesh.polyCount + 2);
-    setAIEntityPath(&bot, &path);
-
-    GLuint pathVbo = createBufferObject(path.points, navMesh.polyCount + 2, GL_DYNAMIC_DRAW);
-    GLuint pathVao;
-    glGenVertexArrays(1, &pathVao);
-    glBindVertexArray(pathVao);
-    bindAttribBuffer(pathVbo, POS_ATTRIB_LOC, 3);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
-    ViewCamera viewCamera;
-    real32 aspect = (real32)ScreenWidth / (real32)ScreenHeight;
-    perspective(viewCamera.projection, 40.f, aspect, 1.f, 200.f);
-
     Mesh3D boxMesh;
     createCube(&memoryArena, &boxMesh);
     GLuint boxVao = createIndexedVertexArray(&boxMesh);
@@ -211,6 +134,36 @@ int main()
     Mesh3D planeMesh;
     createPlane(&memoryArena, &planeMesh);
     GLuint planeVao = createIndexedVertexArray(&planeMesh);
+
+    Debug debug;
+    debug.planeVao = planeVao;
+    debug.planeICount = 6;
+    debug.planeSize = level.width;
+
+    // Init the nav mesh.
+    NavMesh navMesh;
+    initializeNavMesh(&memoryArena, &debug, &level, &navMesh);
+    debug.navMesh = &navMesh;
+
+    CameraPan camera;
+    initializeCameraPan(&camera);
+    camera.target = Vec3(0.5 * MAP_WIDTH, 0.3 * MAP_HEIGHT, 0);
+
+    AIEntity bot;
+    bot.entity.position = Vec3(1, 1, 0);
+
+    Path path;
+    initializePath(&memoryArena, &path, navMesh.polyCount);
+
+    setAIEntityPath(&bot, &path);
+
+    debug.path = &path;
+    debug.pathVbo = createBufferObject(path.points, navMesh.polyCount + 2, GL_DYNAMIC_DRAW);
+    debug.pathVao = createVertexArray(debug.pathVbo);
+
+    ViewCamera viewCamera;
+    real32 aspect = (real32)ScreenWidth / (real32)ScreenHeight;
+    perspective(viewCamera.projection, 40.f, aspect, 1.f, 200.f);
 
     Input input;
     memset(&input, 0, sizeof(input));
@@ -221,9 +174,7 @@ int main()
     uint64 counterFrequency = SDL_GetPerformanceFrequency();
 
     // Check error at initialization
-
     ASSERT_MSG(!glGetError(), "OpenGl Error after initialization");
-    logOpenGLErrors();
 
     bool running = true;
     // The main Loop
@@ -232,47 +183,18 @@ int main()
         // Time delta in seconds
         real32 dt = targetMsPerFrame / 1000.0f;
 
-        // Update the input state
-        processInput(&input);
-
-        // Special Input Handling
-        // Quit Game
         if (input.keyStates[QUIT].clicked
             || input.keyStates[ESCAPE].clicked) {
             running = false;
         }
+
+        // Update the input state
+        processInput(&input);
+
+        debugProcessInput(&debug, &input);
         // Reload the shader
         if (input.keyStates[DEBUG_RELOAD_SHADERS].clicked) {
             reloadShaders(&renderer);
-        }
-
-        if (input.keyStates[DEBUG_SHOW_DISTANCE_FIELD].clicked) {
-            debug.showDistanceField = !debug.showDistanceField;
-            if (debug.showDistanceField)
-                debug.showRegions = false;
-        }
-        if (input.keyStates[DEBUG_SHOW_REGIONS].clicked) {
-            debug.showRegions = !debug.showRegions;
-            if (debug.showRegions)
-                debug.showDistanceField = false;
-        }
-        if (input.keyStates[DEBUG_SHOW_CONTOURS].clicked) {
-            debug.showContours = !debug.showContours;
-            if (debug.showContours)
-                debug.showTriRegions = false;
-        }
-        if (input.keyStates[DEBUG_SHOW_TRI_REGIONS].clicked) {
-            debug.showTriRegions = !debug.showTriRegions;
-            if (debug.showTriRegions)
-                debug.showContours = false;
-        }
-        if (input.keyStates[DEBUG_SHOW_POLY_REGIONS].clicked) {
-            debug.showNavMesh = !debug.showNavMesh;
-            if (debug.showNavMesh)
-                debug.showContours = false;
-        }
-        if (input.keyStates[DEBUG_SHOW_DUAL_MESH].clicked) {
-            debug.showDual = !debug.showDual;
         }
 
         updateCameraPan(&camera, &input, &level, dt);
@@ -286,125 +208,68 @@ int main()
         if (input.keyStates[FIRE1].clicked) {
             findPath(&memoryArena, &navMesh, bot.entity.position, groundPos, &path);
             pullString(&memoryArena, &navMesh, bot.entity.position, groundPos, &path);
-            updateBufferObject(pathVbo, path.points, path.length);
+            updateBufferObject(debug.pathVbo, path.points, path.length);
+            debug.pathLength = path.length;
+
+            setAIEntityPath(&bot, &path);
         }
 
         updateAIEntity(&bot, dt);
         updateEntity(&bot.entity, dt);
 
-        {
+        Mat3 identity3;
+        identity(identity3);
 
-            Mat3 identity3;
-            identity(identity3);
+        Vec3 groundSize(MAP_WIDTH, MAP_HEIGHT, 0.0f);
+        Vec3 groundCenter(0.5f * MAP_WIDTH, 0.5f * MAP_HEIGHT, 0.f);
+        pushMeshPiece(&renderer, &renderer.flatDiffShader,
+            planeVao, 3 * planeMesh.fCount,
+            identity3, groundSize, groundCenter, Vec3(.5f));
 
-            Vec3 groundSize(MAP_WIDTH, MAP_HEIGHT, 0.0f);
-            Vec3 groundCenter(0.5f * MAP_WIDTH, 0.5f * MAP_HEIGHT, 0.f);
-            pushMeshPiece(&renderer, &renderer.flatDiffShader,
-                planeVao, 3 * planeMesh.fCount,
-                identity3, groundSize, groundCenter, Vec3(.5f));
+        // Draw Walls
+        Vec3 boxColor = Vec3(0.75);
+        for (uint32 j = 0; j < MAP_HEIGHT; j++) {
+            for (uint32 i = 0; i < MAP_WIDTH; i++) {
+                uint32 val = level.tiles[i + j * MAP_HEIGHT];
+                if (val) {
+                    Vec3 boxSize = Vec3(0.75f, 0.75f, 1.f);
+                    Vec3 pos = Vec3(i + 0.5f, MAP_HEIGHT - j - 0.5f, val - 0.5);
 
-            // Draw Walls
-            Vec3 boxColor = Vec3(0.75);
-
-            for (uint32 j = 0; j < MAP_HEIGHT; j++) {
-                for (uint32 i = 0; i < MAP_WIDTH; i++) {
-                    uint32 val = level.tiles[i + j * MAP_HEIGHT];
-                    if (val) {
-                        Vec3 boxSize = Vec3(0.75f, 0.75f, 1.f);
-                        Vec3 pos = Vec3(i + 0.5f, MAP_HEIGHT - j - 0.5f, val - 0.5);
-
-                        pushMeshPiece(&renderer, &renderer.flatDiffShader,
-                            boxVao, 3 * boxMesh.fCount,
-                            identity3, boxSize, pos, boxColor);
-                    }
+                    pushMeshPiece(&renderer, &renderer.flatDiffShader,
+                        boxVao, 3 * boxMesh.fCount,
+                        identity3, boxSize, pos, boxColor);
                 }
             }
-            pushMeshPiece(&renderer, &renderer.flatDiffShader,
-                boxVao, 3 * boxMesh.fCount,
-                identity3, Vec3(0.5), bot.entity.position + Vec3(0.f, 0.f, .5f), boxColor);
-
-            pushMeshPiece(&renderer, &renderer.flatDiffShader,
-                boxVao, 3 * boxMesh.fCount,
-                identity3, Vec3(.25f, .25f, 1.f), groundPos, boxColor);
-
-            // Set the view Matrix
-            identity(viewCamera.view);
-            lookAt(viewCamera.view, camera.position, camera.target, Vec3(0, 0, 1));
-
-            Mat4 view = viewCamera.view;
-            inverseTransform(view);
-
-            // Render Begin
-            rendererBeginFrame(&renderer);
-
-            logOpenGLErrors();
-
-            // RENDER DEBUG CODE HERE
-            if (debug.showDistanceField || debug.showRegions) {
-                if (debug.showDistanceField) {
-                    pushMeshPieceTextured(&renderer, &renderer.texDiffShader, planeVao, 3 * planeMesh.fCount,
-                        distanceField.texture.texId, identity3, groundSize, groundCenter);
-                }
-                else {
-                    pushMeshPieceTextured(&renderer, &renderer.texDiffShader, planeVao, 3 * planeMesh.fCount,
-                        regionIds.texture.texId, identity3, groundSize, groundCenter);
-                }
-            }
-
-            if (true || debug.showContours || debug.showTriRegions || debug.showNavMesh || debug.showDual) {
-                if (debug.showContours) {
-                    for (uint32 i = 0; i < contours.count; i++) {
-                        pushArrayPiece(&renderer, &renderer.flatColorShader,
-                            lineVaos[i], contours.contours[i].count, ARRAY_POINTS,
-                            identity3, Vec3(1.f), Vec3(0.f), Vec3(1.f));
-                    }
-                    for (uint32 i = 0; i < contours.count; i++) {
-                        pushArrayPiece(&renderer, &renderer.flatColorShader,
-                            lineVaos[i], contours.contours[i].count, ARRAY_LINE_LOOP,
-                            identity3, Vec3(1.f), Vec3(0.f), Vec3(1.f));
-                    }
-                }
-
-                if (debug.showTriRegions) {
-                    for (uint32 i = 0; i < contours.count; i++) {
-                        pushMeshPieceWireframe(&renderer, &renderer.flatColorShader,
-                            contourMeshVaos[i], 3 * triangulatedCountours[i].vCount,
-                            identity3, Vec3(1.0f), Vec3(0.f), Vec3(1.0f));
-                    }
-                }
-                if (debug.showNavMesh) {
-                    for (uint32 i = 0; i < navMesh.polyCount; i++) {
-                        uint32 iCount = polyVertCount(&navMesh, i);
-                        pushIndexedArrayPiece(&renderer, &renderer.flatColorShader, navVaos[i], iCount, INDEXED_ARRAY_LINE_LOOP,
-                            identity3, Vec3(1.0f), Vec3(.0f), Vec3(0, 0, 1));
-                    }
-                }
-                if (debug.showDual) {
-                    pushIndexedArrayPiece(&renderer, &renderer.flatColorShader, dualVao, dual.indCount, INDEXED_ARRAY_LINES,
-                        identity3, Vec3(1.0f), Vec3(.0f), Vec3(1, 0, 0));
-                }
-            }
-
-            for (uint32 p = 0; p < path.polyPathLength; p++) {
-                uint32 iCount = polyVertCount(&navMesh, path.polys[p]);
-                pushIndexedArrayPiece(&renderer, &renderer.flatColorShader, navVaos[path.polys[p]], iCount, INDEXED_ARRAY_LINE_LOOP,
-                    identity3, Vec3(1.0f), Vec3(.0f), Vec3(1, 0, 0));
-            }
-            if (path.length > 0) {
-                pushArrayPiece(&renderer, &renderer.flatColorShader,
-                    pathVao, path.length, ARRAY_LINE_STRIP,
-                    identity3, Vec3(1.f), Vec3(0.f), Vec3(1.f));
-            }
-
-            renderAll(&renderer, viewCamera.projection, view);
-
-            SDL_GL_SwapWindow(window);
-            logOpenGLErrors();
         }
+
+        // Bot box
+        pushMeshPiece(&renderer, &renderer.flatDiffShader,
+            boxVao, 3 * boxMesh.fCount,
+            identity3, Vec3(0.5), bot.entity.position + Vec3(0.f, 0.f, .5f), boxColor);
+
+        // Box target
+        pushMeshPiece(&renderer, &renderer.flatDiffShader,
+            boxVao, 3 * boxMesh.fCount,
+            identity3, Vec3(.25f, .25f, 1.f), groundPos, boxColor);
+
+        debugDraw(&debug, &renderer);
+
+        // Set the view Matrix
+        identity(viewCamera.view);
+        lookAt(viewCamera.view, camera.position, camera.target, Vec3(0, 0, 1));
+
+        Mat4 view = viewCamera.view;
+        inverseTransform(view);
+
+        rendererBeginFrame(&renderer);
+
+        renderAll(&renderer, viewCamera.projection, view);
+
+        SDL_GL_SwapWindow(window);
+        logOpenGLErrors();
 
         // Update the clock
         endCounter = SDL_GetPerformanceCounter();
-
         uint64 couterElapsed = endCounter - lastCounter;
         real32 msElapsed = ((1000.0f * (real32)couterElapsed) / (real32)counterFrequency);
 
@@ -416,9 +281,6 @@ int main()
             couterElapsed = endCounter - lastCounter;
             msElapsed += ((1000.0f * (real32)couterElapsed) / (real32)counterFrequency);
         }
-
-        //int32 fps = 1000/msElapsed;
-        //printf("%f ms, %d fps %d\n",msElapsed,fps,bulletCount);
         lastCounter = endCounter;
     }
 

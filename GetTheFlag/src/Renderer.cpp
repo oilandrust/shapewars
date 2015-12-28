@@ -9,7 +9,7 @@ void intializeRenderer(MemoryArena* arena, Renderer* renderer)
     logOpenGLErrors();
 }
 
-void rendererBeginFrame(Renderer* renderer)
+void rendererBeginFrame(Renderer* /*renderer*/)
 {
     glClearDepth(1.0f);
     glEnable(GL_DEPTH_TEST);

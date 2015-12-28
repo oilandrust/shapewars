@@ -67,6 +67,8 @@ void bindAttribBuffer(GLuint buffer, GLuint loc, uint32 size);
 
 GLuint createVertexArray(Vec3* data, uint32 count);
 
+GLuint createVertexArray(GLuint vbo);
+
 GLuint createIndexedVertexArray(Mesh3D* mesh);
 
 GLuint createIndexedVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount);

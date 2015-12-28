@@ -11,7 +11,6 @@
 extern uint8 level1[MAP_WIDTH*MAP_HEIGHT];
 extern uint8 level2[MAP_WIDTH*MAP_HEIGHT];
 
-
 struct Level {
     uint8* tiles;
     uint32 width;

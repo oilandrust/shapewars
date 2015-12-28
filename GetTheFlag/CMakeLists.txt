@@ -28,6 +28,8 @@ add_executable(GetTheFlag
 	src/NavMesh.h
 	src/NavMeshQuery.cpp
 	src/NavMeshQuery.h
+	src/Debug.cpp
+	src/Debug.h
 
 	src/stb_image.cpp
 )

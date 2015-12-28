@@ -143,6 +143,14 @@ uint32 findContainingPolygon(NavMesh* navMesh, const Vec3& point)
 #define UNVISITED 0xfffffffe
 #define NO_PRED 0xffffffff
 
+void initializePath(MemoryArena* arena, Path* path, uint32 maxPathLength)
+{
+    path->polyPathLength = 0;
+    path->polys = pushArray<uint32>(arena, maxPathLength);
+    path->length = 0;
+    path->points = pushArray<Vec3>(arena, maxPathLength + 2);
+}
+
 bool findPath(MemoryArena* arena, NavMesh* navMesh, const Vec3& start, const Vec3& end, Path* path)
 {
     uint32 startPoly = findContainingPolygon(navMesh, start);

@@ -24,6 +24,8 @@ struct Path {
     uint32* polys;
 };
 
+void initializePath(MemoryArena* arena, Path* path, uint32 maxPathLength);
+
 bool findPath(MemoryArena* arena, NavMesh* navMesh, const Vec3& start, const Vec3& end, Path* path);
 
 void pullString(MemoryArena* arena, NavMesh* mesh, const Vec3& start, const Vec3& end, Path* path);

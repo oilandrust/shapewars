@@ -164,6 +164,21 @@ GLuint createVertexArray(Vec3* data, uint32 count)
     return vao;
 }
 
+GLuint createVertexArray(GLuint vbo)
+{
+    // Create the vao
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    bindAttribBuffer(vbo, POS_ATTRIB_LOC, 3);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    return vao;
+}
+
 GLuint createIndexedVertexArray(Vec3* data, uint32 count, uint32* indices, uint32 iCount)
 {
     //Create VBO

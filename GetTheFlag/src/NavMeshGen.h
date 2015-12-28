@@ -2,7 +2,9 @@
 #ifndef NavMeshGen_h
 #define NavMeshGen_h
 
+#include "Debug.h"
 #include "GetTheFlag.h"
+#include "Level.h"
 #include "NavMesh.h"
 #include "OpenGLClient.h"
 
@@ -18,13 +20,13 @@ struct DistanceField {
 
     real32* field;
     real32 minVal;
-
-    // FIXME: Remove texture from here
-    // For visualizion
-    Texture texture;
 };
 
+void initializeNavMesh(MemoryArena* arena, Debug* debug, Level* level, NavMesh* navMesh);
+
 void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* field);
+
+GLuint debugDistanceFieldCreateTexture(MemoryArena* arena, DistanceField* field);
 
 struct RegionIdMap {
     uint32 width;
@@ -32,12 +34,11 @@ struct RegionIdMap {
     int32* ids;
     uint32 regionCount;
     int32 lastId;
-
-    // FIXME: Remove texture from here
-    Texture texture;
 };
 
 void genRegions(MemoryArena* arena, DistanceField* distanceFiend, RegionIdMap* regions);
+
+GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap);
 
 struct Contour {
     Vec3* vertices;
@@ -48,6 +49,14 @@ struct ContourSet {
     Contour* contours;
     uint32 count;
 };
+
+enum Dir {
+    DIR_UP = 0,
+    DIR_RIGHT,
+    DIR_DOWN,
+    DIR_LEFT
+};
+
 // FIXME: Keep ids in contours for rendering
 void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contour);
 

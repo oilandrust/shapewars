@@ -1,8 +1,8 @@
 #ifndef INPUTH
 #define INPUTH
 
-#include <SDL.h>
 #include "GetTheFlag.h"
+#include <SDL.h>
 
 struct KeyState {
     bool clicked;
@@ -26,14 +26,14 @@ enum KEY {
     DEBUG_SHOW_TRI_REGIONS,
     DEBUG_SHOW_POLY_REGIONS,
     DEBUG_SHOW_DUAL_MESH,
-    
+    DEBUG_SHOW_PATH,
+
     NUM_KEYS
 };
 
-
 struct Input {
     KeyState keyStates[NUM_KEYS];
-    
+
     int32 mouseX;
     int32 mouseY;
 };

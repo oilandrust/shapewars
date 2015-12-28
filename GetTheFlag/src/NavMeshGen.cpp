@@ -8,6 +8,60 @@
 
 #include "NavMeshGen.h"
 
+void initializeNavMesh(MemoryArena* arena, Debug* debug, Level* level, NavMesh* navMesh)
+{
+    LevelRaster raster{ level->tiles, level->width, level->height };
+
+    // Distance field.
+    DistanceField distanceField;
+    genDistanceField(arena, &raster, &distanceField);
+    debug->distanceFieldTexId = debugDistanceFieldCreateTexture(arena, &distanceField);
+
+    // Region Ids.
+    RegionIdMap regionIds;
+    genRegions(arena, &distanceField, &regionIds);
+    debug->idsTexId = debugRegionsCreateTexture(arena, &regionIds);
+
+    // Contours
+    ContourSet contours;
+    genContours(arena, &regionIds, &contours);
+    debug->contourCount = contours.count;
+    debug->contourVaos = pushArray<GLuint>(arena, contours.count);
+    debug->contourICounts = pushArray<uint32>(arena, contours.count);
+    for (uint32 i = 0; i < contours.count; i++) {
+        uint32 vCount = contours.contours[i].count;
+        Vec3* vertices = contours.contours[i].vertices;
+        debug->contourVaos[i] = createVertexArray(vertices, vCount);
+        debug->contourICounts[i] = vCount;
+    }
+
+    // Triangulated contours.
+    Mesh3D* triangulatedCountours = pushArray<Mesh3D>(arena, contours.count);
+    triangulateContours(arena, &contours, triangulatedCountours);
+    debug->contourMeshCount = contours.count;
+    debug->contourMeshes = pushArray<GLuint>(arena, contours.count);
+    debug->contourMeshesIndices = pushArray<uint32>(arena, contours.count);
+    for (uint32 i = 0; i < contours.count; i++) {
+        debug->contourMeshes[i] = createIndexedVertexArray(&triangulatedCountours[i]);
+        debug->contourMeshesIndices[i] = 3 * triangulatedCountours[i].fCount;
+    }
+
+    // NavMesh and connectivity.
+    DualMesh dual;
+    buildNavMesh(arena, &contours, triangulatedCountours, navMesh, &dual);
+
+    debug->navPolyCount = navMesh->polyCount;
+    debug->polyVaos = pushArray<GLuint>(arena, navMesh->polyCount);
+    debug->polyICounts = pushArray<uint32>(arena, navMesh->polyCount);
+    for (uint32 i = 0; i < navMesh->polyCount; i++) {
+        debug->polyVaos[i] = createIndexedVertexArray(navMesh->vertices, navMesh->vertCount,
+            navMesh->polygons + 2 * i * navMesh->maxVertPerPoly, navMesh->maxVertPerPoly);
+        debug->polyICounts[i] = polyVertCount(navMesh, i);
+    }
+    debug->dualVao = createIndexedVertexArray(dual.vertices, dual.vertCount, dual.indices, dual.indCount);
+    debug->dualICount = dual.indCount;
+}
+
 void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* field)
 {
     field->width = level->width;
@@ -20,7 +74,6 @@ void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* fie
     size_t count = width * height;
 
     real32* distanceField = pushArray<real32>(arena, count);
-    uint8* distanceFieldTexData = pushArray<uint8>(arena, count);
     field->field = distanceField;
 
     // Retrieve the position of the walls.
@@ -59,19 +112,31 @@ void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* fie
     field->minVal = -maxDist;
 
     popArray<Vec2>(arena, wallCount);
+}
 
-    // Update the texture data.
-    for (uint32 j = 0; j < height; j++) {
-        for (uint32 i = 0; i < width; i++) {
-            distanceFieldTexData[i + j * width] = -255 * distanceField[i + j * width] / maxDist;
+GLuint debugDistanceFieldCreateTexture(MemoryArena* arena, DistanceField* field)
+{
+    uint32 w = field->width;
+    uint32 h = field->height;
+    real32 maxDist = -field->minVal;
+    real32* distanceField = field->field;
+
+    uint8* distanceFieldTexData = pushArray<uint8>(arena, w * h);
+
+    for (uint32 j = 0; j < h; j++) {
+        for (uint32 i = 0; i < w; i++) {
+            distanceFieldTexData[i + j * w] = -255 * distanceField[i + j * w] / maxDist;
         }
     }
-    field->texture.width = width;
-    field->texture.height = height;
-    field->texture.data = distanceFieldTexData;
-    createTexture(&field->texture, GL_RED);
+    Texture tex;
+    tex.width = w;
+    tex.height = h;
+    tex.data = distanceFieldTexData;
+    createTexture(&tex, GL_RED);
 
-    popArray<uint8>(arena, width * height);
+    popArray<uint8>(arena, w * h);
+
+    return tex.texId;
 }
 
 static void flood(real32* field, real32 level, int32* regionIds_t0, int32* regionIds_t1,
@@ -319,24 +384,38 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
         }
     }
 
+    regions->lastId = nextId;
+
+    // TODO:
     // If a regions wrap around a non walkable region, these non walkable region will become walkable.
     // So we go through unwalkable regions, and if they have only one region as neighboor, split this region.
 
+    // regionIds_t1
+    popArray<int32>(arena, count);
+}
+
+GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap)
+{
+    uint32 idCount = idMap->lastId;
+    uint32 w = idMap->width;
+    uint32 h = idMap->height;
+    int32* ids = idMap->ids;
+
     // Assign a random color to each id
-    RGB* colors = pushArray<RGB>(arena, nextId);
-    for (int32 i = 0; i < nextId; i++) {
+    RGB* colors = pushArray<RGB>(arena, idCount);
+    for (uint32 i = 0; i < idCount; i++) {
         colors[i].r = 255 * (real32)rand() / RAND_MAX;
         colors[i].g = 255 * (real32)rand() / RAND_MAX;
         colors[i].b = 255 * (real32)rand() / RAND_MAX;
     }
 
     // Write a segment texture with id->color map.
-    RGBA* segmentsTexData = pushArray<RGBA>(arena, count);
-    for (uint32 j = 0; j < height; j++) {
-        for (uint32 i = 0; i < width; i++) {
-            uint32 index = i + j * width;
-            if (regionIds_t0[index] != -1) {
-                uint32 cId = regionIds_t0[index];
+    RGBA* segmentsTexData = pushArray<RGBA>(arena, w * h);
+    for (uint32 j = 0; j < h; j++) {
+        for (uint32 i = 0; i < w; i++) {
+            uint32 index = i + j * w;
+            if (ids[index] != -1) {
+                uint32 cId = ids[index];
                 RGB col = colors[cId];
                 segmentsTexData[index] = { col.r, col.g, col.b, 255 };
             }
@@ -346,18 +425,16 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
         }
     }
 
-    regions->lastId = nextId;
-    regions->texture.width = width;
-    regions->texture.height = height;
-    regions->texture.data = segmentsTexData;
-    createTexture(&regions->texture, GL_RGBA);
+    Texture tex;
+    tex.width = w;
+    tex.height = h;
+    tex.data = segmentsTexData;
+    createTexture(&tex, GL_RGBA);
 
-    // colors
-    popArray<RGBA>(arena, count);
-    // segmentTexData
-    popArray<RGB>(arena, nextId);
-    // regionIds_t1
-    popArray<int32>(arena, count);
+    popArray<RGBA>(arena, w * h);
+    popArray<RGB>(arena, idCount);
+
+    return tex.texId;
 }
 
 static int32 idAt(int32* ids, uint32 w, uint32 i, uint32 j)
@@ -365,23 +442,16 @@ static int32 idAt(int32* ids, uint32 w, uint32 i, uint32 j)
     return ids[i + j * w];
 };
 
-enum Dir {
-    UP = 0,
-    RIGHT,
-    DOWN,
-    LEFT
-};
-
 static int32 idAtRight(int32* ids, uint32 w, uint32 h, uint32 i, uint32 j, Dir dir)
 {
     switch (dir) {
-    case UP:
+    case DIR_UP:
         return j == 0 ? -1 : idAt(ids, w, i, j - 1);
-    case RIGHT:
+    case DIR_RIGHT:
         return i + 1 >= w ? -1 : idAt(ids, w, i + 1, j);
-    case DOWN:
+    case DIR_DOWN:
         return j + 1 >= h ? -1 : idAt(ids, w, i, j + 1);
-    case LEFT:
+    case DIR_LEFT:
         return i == 0 ? -1 : idAt(ids, w, i - 1, j);
     }
     return -1;
@@ -390,13 +460,13 @@ static int32 idAtRight(int32* ids, uint32 w, uint32 h, uint32 i, uint32 j, Dir d
 static bool isEdge(int32* ids, uint32 w, uint32 h, uint32 i, uint32 j, Dir dir)
 {
     switch (dir) {
-    case UP:
+    case DIR_UP:
         return j == 0 || idAt(ids, w, i, j) != idAt(ids, w, i, j - 1);
-    case RIGHT:
+    case DIR_RIGHT:
         return i + 1 >= w || idAt(ids, w, i, j) != idAt(ids, w, i + 1, j);
-    case DOWN:
+    case DIR_DOWN:
         return j + 1 >= h || idAt(ids, w, i, j) != idAt(ids, w, i, j + 1);
-    case LEFT:
+    case DIR_LEFT:
         return i == 0 || idAt(ids, w, i, j) != idAt(ids, w, i - 1, j);
     }
     return false;
@@ -426,10 +496,10 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
                 continue;
             }
             // Check if this is a border cell to start a region
-            if (!isEdge(ids, w, h, i, j, UP)
-                && !isEdge(ids, w, h, i, j, RIGHT)
-                && !isEdge(ids, w, h, i, j, DOWN)
-                && !isEdge(ids, w, h, i, j, LEFT)) {
+            if (!isEdge(ids, w, h, i, j, DIR_UP)
+                && !isEdge(ids, w, h, i, j, DIR_RIGHT)
+                && !isEdge(ids, w, h, i, j, DIR_DOWN)
+                && !isEdge(ids, w, h, i, j, DIR_LEFT)) {
                 continue;
             }
             visited[cellId] = 1;
@@ -438,7 +508,7 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
             Vec3* verts = pushArray<Vec3>(arena, w * h);
 
             // We visit in order from top-left to bottom so the direction must be DOWN for ccw order.
-            Dir fDir = DOWN;
+            Dir fDir = DIR_DOWN;
             Dir rDir = (Dir)((fDir + 1) % 4);
 
             uint32 x = i;
@@ -455,16 +525,16 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
                 // Go to the end of the segment.
                 do {
                     switch (fDir) {
-                    case UP:
+                    case DIR_UP:
                         y--;
                         break;
-                    case RIGHT:
+                    case DIR_RIGHT:
                         x++;
                         break;
-                    case DOWN:
+                    case DIR_DOWN:
                         y++;
                         break;
-                    case LEFT:
+                    case DIR_LEFT:
                         x--;
                         break;
                     default:
@@ -481,16 +551,16 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
                         // Add a vertex backwards.
                         Vec3 offset;
                         switch (fDir) {
-                        case UP:
+                        case DIR_UP:
                             offset = Vec3(.5f, -.5f, .0f);
                             break;
-                        case RIGHT:
+                        case DIR_RIGHT:
                             offset = Vec3(-.5f, -.5f, .0f);
                             break;
-                        case DOWN:
+                        case DIR_DOWN:
                             offset = Vec3(-.5f, .5f, .0f);
                             break;
-                        case LEFT:
+                        case DIR_LEFT:
                             offset = Vec3(.5f, .5f, .0f);
                             break;
                         }
@@ -507,16 +577,16 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
                     Vec3 offset;
                     // forwards.
                     switch (fDir) {
-                    case UP:
+                    case DIR_UP:
                         offset = Vec3(.5f, .5f, .0f);
                         break;
-                    case RIGHT:
+                    case DIR_RIGHT:
                         offset = Vec3(.5f, -.5f, .0f);
                         break;
-                    case DOWN:
+                    case DIR_DOWN:
                         offset = Vec3(-.5f, -.5f, .0f);
                         break;
-                    case LEFT:
+                    case DIR_LEFT:
                         offset = Vec3(-.5f, .5f, .0f);
                         break;
                     }
@@ -531,14 +601,14 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
                 else {
                     // turn left.
                     rDir = fDir;
-                    fDir = fDir == 0 ? LEFT : (Dir)((fDir - 1) % 4);
+                    fDir = fDir == 0 ? DIR_LEFT : (Dir)((fDir - 1) % 4);
                 }
             } while (x != xb || y != yb);
 
             // If the start position is in a 1 cell wide limb, add a vertex.
             // we can spot that if the end direction is not the same as the start direction
-            if (fDir != DOWN) {
-                ASSERT(fDir == LEFT);
+            if (fDir != DIR_DOWN) {
+                ASSERT(fDir == DIR_LEFT);
                 Vec3 cellCenter = Vec3(x + 0.5, h - y - 0.5, 0.5);
                 verts[count++] = cellCenter + Vec3(-.5f, .5f, .0f);
             }
@@ -584,9 +654,6 @@ void triangulateContours(MemoryArena* arena, ContourSet* contours, Mesh3D* meshe
     uint32 cFCount = 0;
 
     for (uint32 c = 0; c < contours->count; c++) {
-        Mesh3D* mesh = meshes + c;
-        memset(mesh, 0, sizeof(Mesh3D));
-
         Contour* contour = contours->contours + c;
         Vec3* verts = contour->vertices;
         ASSERT(verts == gvertices + cVCount);
@@ -594,6 +661,8 @@ void triangulateContours(MemoryArena* arena, ContourSet* contours, Mesh3D* meshe
         uint32 vCount = contour->count;
         uint32 fCount = vCount - 2;
 
+        Mesh3D* mesh = meshes + c;
+        memset(mesh, 0, sizeof(Mesh3D));
         mesh->positions = verts;
         mesh->indices = indices;
         mesh->vCount = vCount;
@@ -656,15 +725,6 @@ static uint32 findOrAddVertex(NavMesh* mesh, const Vec3& pos)
     uint32 i = mesh->vertCount++;
     verts[i] = pos;
     return i;
-}
-
-static uint32 polyVertCount(uint32 mvp, uint32* poly)
-{
-    uint32 pvCount = 0;
-    while (poly[pvCount] != NULL_INDEX && pvCount < mvp) {
-        pvCount++;
-    }
-    return pvCount;
 }
 
 static real32 validMergeEdgeLength(NavMesh* mesh, uint32* p, uint32* q, uint32& ve, uint32& we)
@@ -991,13 +1051,6 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
     }
 
     computePolygonAdjacency(arena, mesh, dual);
-}
-
-uint32 polyVertCount(NavMesh* mesh, uint32 polyRef)
-{
-    ASSERT(polyRef < mesh->polyCount);
-    uint32* poly = mesh->polygons + 2 * polyRef * mesh->maxVertPerPoly;
-    return polyVertCount(mesh->maxVertPerPoly, poly);
 }
 
 bool checkNavMesh(NavMesh* mesh)

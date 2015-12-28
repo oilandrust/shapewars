@@ -44,4 +44,20 @@ inline bool isCW(const Vec3& p0, const Vec3& p1, const Vec3& p2)
     return cross(p1 - p0, p2 - p1).z < 0;
 }
 
+inline uint32 polyVertCount(uint32 mvp, uint32* poly)
+{
+    uint32 pvCount = 0;
+    while (poly[pvCount] != NULL_INDEX && pvCount < mvp) {
+        pvCount++;
+    }
+    return pvCount;
+}
+
+inline uint32 polyVertCount(NavMesh* mesh, uint32 polyRef)
+{
+    ASSERT(polyRef < mesh->polyCount);
+    uint32* poly = mesh->polygons + 2 * polyRef * mesh->maxVertPerPoly;
+    return polyVertCount(mesh->maxVertPerPoly, poly);
+}
+
 #endif /* NavMesh_h */
