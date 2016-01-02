@@ -19,7 +19,7 @@
 #include "ShapeWars.h"
 #include "Vec3.h"
 
-// TODO: 7 days
+// TODO: 2 days
 // Cleanup
 // Bigger level
 // Debug refactoring 2
@@ -153,7 +153,7 @@ int main()
 
     // Init the nav mesh.
     NavMesh navMesh;
-    initializeNavMesh(&memoryArena, &debug, &level, &navMesh);
+    initializeNavMesh(&memoryArena, &debug, &level, &navMesh, 1 * MAP_WIDTH, 1 * MAP_HEIGHT);
     debug.navMesh = &navMesh;
 
     CameraPan camera;
@@ -202,15 +202,14 @@ int main()
             || input.keyStates[ESCAPE].clicked) {
             running = false;
         }
-
-        // Update the input state
-        processInput(&input);
-        debugProcessInput(&debug, &input);
-
         // Reload the shader
         if (input.keyStates[DEBUG_RELOAD_SHADERS].clicked) {
             reloadShaders(&renderer);
         }
+
+        // Update the input state
+        processInput(&input);
+        debugProcessInput(&debug, &input);
 
         updateCameraPan(&camera, &input, &level, dt);
         viewCameraLookAt(&viewCamera, camera.position, camera.target, Vec3(0, 0, 1));
@@ -248,7 +247,7 @@ int main()
             for (uint32 i = 0; i < level.height; i++) {
                 uint32 val = level.tiles[i + j * level.width];
                 if (val) {
-                    Vec3 boxSize = Vec3(0.75f, 0.75f, 1.f);
+                    Vec3 boxSize = Vec3(1.f);
                     Vec3 pos = Vec3(i + 0.5f, level.height - j - 0.5f, val - 0.5);
 
                     pushMeshPiece(&renderer, &renderer.flatDiffShader,

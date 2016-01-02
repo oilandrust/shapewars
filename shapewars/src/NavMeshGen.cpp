@@ -8,9 +8,19 @@
 
 #include "NavMeshGen.h"
 
-void initializeNavMesh(MemoryArena* arena, Debug* debug, Level* level, NavMesh* navMesh)
+void initializeNavMesh(MemoryArena* arena, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight)
 {
-    LevelRaster raster{ level->tiles, level->width, level->height };
+    uint8* rasterData = pushArray(arena, fieldHeight * fieldHeight, (uint8)0);
+    LevelRaster raster{ rasterData, fieldWidth, fieldHeight };
+    for (uint32 j = 0; j < fieldHeight; j++) {
+        uint32 jw = level->height * (real32)j / fieldHeight;
+        for (uint32 i = 0; i < fieldWidth; i++) {
+            uint32 iw = level->width * (real32)i / fieldWidth;
+            if (level->tiles[iw + jw * level->width]) {
+                rasterData[i + j * fieldHeight] = 1;
+            }
+        }
+    }
 
     // Distance field.
     DistanceField distanceField;
@@ -74,7 +84,6 @@ void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* fie
     size_t count = width * height;
 
     real32* distanceField = pushArray<real32>(arena, count);
-    field->field = distanceField;
 
     // Retrieve the position of the walls.
     uint32 wallCount = 0;
@@ -111,7 +120,64 @@ void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* fie
     }
     field->minVal = -maxDist;
 
-    popArray<Vec2>(arena, wallCount);
+    real32* avgField = pushArray<real32>(arena, width * height);
+
+    // smooth
+    for (uint32 j = 0; j < height; j++) {
+        for (uint32 i = 0; i < width; i++) {
+            uint32 c = 1;
+            real32 avg = distanceField[i + j * width];
+            if (avg == 0) {
+                avgField[i + j * width] = 0;
+                continue;
+            }
+            // top
+            if (j + 1 < height) {
+                avg += distanceField[i + (j + 1) * width];
+                c++;
+            }
+            // top right
+            if (j + 1 < height && i + 1 < width) {
+                avg += distanceField[i + 1 + (j + 1) * width];
+                c++;
+            }
+            // right
+            if (i + 1 < width) {
+                avg += distanceField[i + 1 + j * width];
+                c++;
+            }
+            // right bottom
+            if (i + 1 < width && j > 0) {
+                avg += distanceField[i + 1 + (j - 1) * width];
+                c++;
+            }
+            // bottom
+            if (j > 0) {
+                avg += distanceField[i + (j - 1) * width];
+                c++;
+            }
+            // bottom left
+            if (i > 0 && j > 0) {
+                avg += distanceField[i - 1 + (j - 1) * width];
+                c++;
+            }
+            // left
+            if (i > 0) {
+                avg += distanceField[i - 1 + j * width];
+                c++;
+            }
+            // left top
+            if (i > 0 && j + 1 < height) {
+                avg += distanceField[i - 1 + (j + 1) * width];
+                c++;
+            }
+
+            avgField[i + j * width] = avg / c;
+        }
+    }
+    field->field = distanceField;
+
+    //    popArray<Vec2>(arena, wallCount);
 }
 
 GLuint debugDistanceFieldCreateTexture(MemoryArena* arena, DistanceField* field)
@@ -162,7 +228,7 @@ static void flood(real32* field, real32 level, int32* regionIds_t0, int32* regio
         }
     }
     // bottom
-    if (j - 1 < height) {
+    if (j > 0) {
         uint32 n = i + (j - 1) * width;
         if (field[n] < level && regionIds_t0[n] == -1) {
             regionIds_t1[n] = newId;
@@ -171,7 +237,7 @@ static void flood(real32* field, real32 level, int32* regionIds_t0, int32* regio
         }
     }
     // left
-    if (i - 1 < width) {
+    if (i > 0) {
         uint32 n = i - 1 + j * width;
         if (field[n] < level && regionIds_t0[n] == -1) {
             regionIds_t1[n] = newId;
@@ -234,7 +300,6 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
     regions->ids = regionIds_t0;
 
     real32 levelValue = distanceField->minVal;
-    real32 step = 0.1;
     int32 nextId = 0;
 
     for (uint32 j = 0; j < height; j++) {
@@ -243,20 +308,31 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
         }
     }
 
-    while (levelValue < 0.0f) {
+    real32* sortedDistances = pushArray<real32>(arena, count);
+    for (uint32 i = 0; i < count; i++) {
+        sortedDistances[i] = distanceField->field[i];
+    }
+    std::sort(sortedDistances, sortedDistances + count);
+    const float eps = 0.000001;
+    uint32 levelIndex = 0;
+    levelValue = sortedDistances[0];
+
+    while (levelValue < 0.f) {
         for (uint32 j = 0; j < count; j++) {
             regionIds_t1[j] = -1;
         }
+
+        float val = levelValue + eps;
 
         // Flood the existing regions.
         for (uint32 j = 0; j < height; j++) {
             for (uint32 i = 0; i < width; i++) {
                 uint32 v = i + j * width;
-                if (distanceField->field[v] < levelValue) {
+                if (distanceField->field[v] < val) {
                     if (regionIds_t0[v] != -1) {
                         regionIds_t1[v] = regionIds_t0[v];
                         // flood neighboring pixels
-                        flood(distanceField->field, levelValue, regionIds_t0, regionIds_t1, width, height,
+                        flood(distanceField->field, val, regionIds_t0, regionIds_t1, width, height,
                             i, j, regionIds_t0[v]);
                     }
                 }
@@ -267,12 +343,12 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
         for (uint32 j = 0; j < height; j++) {
             for (uint32 i = 0; i < width; i++) {
                 uint32 v = i + j * width;
-                if (distanceField->field[v] < levelValue) {
+                if (distanceField->field[v] < val) {
                     if (regionIds_t0[v] == -1 && regionIds_t1[v] == -1) {
                         // Create a new region.
                         regionIds_t1[v] = nextId++;
                         // flood neighboring pixels
-                        floodNew(distanceField->field, levelValue, regionIds_t0, regionIds_t1, width, height,
+                        floodNew(distanceField->field, val, regionIds_t0, regionIds_t1, width, height,
                             i, j, regionIds_t1[v]);
                     }
                 }
@@ -280,9 +356,13 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
         }
 
         std::swap(regionIds_t0, regionIds_t1);
-
-        levelValue += step;
+        while (levelIndex < count && sortedDistances[levelIndex] == levelValue) {
+            levelIndex++;
+        }
+        levelValue = sortedDistances[levelIndex];
     }
+    // sorted distances.
+    popArray<real32>(arena, count);
 
     regions->regionCount = nextId;
 

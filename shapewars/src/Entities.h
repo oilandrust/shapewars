@@ -50,21 +50,4 @@ void initializeCameraPan(CameraPan* camera, const Vec2& levelBounds);
 
 void updateCameraPan(CameraPan* camera, Input* input, Level* level, real32 dt);
 
-struct Player {
-    Vec3 position;
-    Vec3 velocity;
-    Vec3 accel;
-    Vec3 aimDir;
-
-    Vec2 collisionSize;
-    real32 acc;
-    real32 drag;
-    real32 spriteSize;
-    real32 size;
-};
-
-void initializePlayer(Player* player);
-
-void updatePlayer(Player* player, Input* input, Level* level, real32 dt);
-
 #endif

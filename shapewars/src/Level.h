@@ -1,15 +1,15 @@
 #ifndef LEVELH
 #define LEVELH
 
+#include "Entities.h"
 #include "ShapeWars.h"
 #include "Vec2.h"
-#include "Entities.h"
 
 #define MAP_WIDTH 32
 #define MAP_HEIGHT 32
 
-extern uint8 level1[MAP_WIDTH*MAP_HEIGHT];
-extern uint8 level2[MAP_WIDTH*MAP_HEIGHT];
+extern uint8 level1[MAP_WIDTH * MAP_HEIGHT];
+extern uint8 level2[MAP_WIDTH * MAP_HEIGHT];
 
 struct Level {
     uint8* tiles;
@@ -49,8 +49,8 @@ inline uint32 levelCellIndex(Level* level, const Vec3& pos)
 {
     uint32 i = pos.x;
     uint32 j = pos.y;
-    
-    return i + j*level->width;
+
+    return i + j * level->width;
 }
 
 inline Vec2 levelToWorld(Level* level, real32 i, real32 j)
@@ -67,20 +67,5 @@ inline uint32 levelUnitToPixel(real32 pixerPerUnit, real32 c)
 {
     return roundReal32toInt32(c * pixerPerUnit);
 }
-
-struct Rect {
-    Vec2 min;
-    Vec2 max;
-};
-
-inline bool rectCollidesRect(const Rect& a, const Rect& b)
-{
-    return (max(a.min.x, b.min.x) < min(a.max.x, b.max.x))
-        && (max(a.min.y, b.min.y) < min(a.max.y, b.max.y));
-}
-
-extern bool levelRectCollides(Level* level, const Rect& rect);
-
-bool levelRectCollides(Level* level, const Vec2& size, const Vec2& position, const Vec2& velocity, const real32 dt, Vec2& collisionPoint, Vec2& normal);
 
 #endif
