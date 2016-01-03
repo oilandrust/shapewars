@@ -39,6 +39,7 @@ struct Renderer {
     Shader flatDiffShader;
     Shader texDiffShader;
     Shader flatColorShader;
+    Shader groundShader;
 };
 
 /**
@@ -47,6 +48,8 @@ struct Renderer {
 void intializeRenderer(MemoryArena* arena, Renderer* renderer);
 
 void reloadShaders(Renderer* renderer);
+
+void initializeShader(Shader* shader, const char* vsSourcePath, const char* fsSourcePath);
 
 /**
  * Add render requests.

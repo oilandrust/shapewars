@@ -237,9 +237,9 @@ int main()
 
         Vec3 groundSize(level.width, level.height, 0.0f);
         Vec3 groundCenter(0.5f * level.width, 0.5f * level.height, 0.f);
-        pushMeshPiece(&renderer, &renderer.flatDiffShader,
+        pushMeshPiece(&renderer, &renderer.groundShader ,
             planeVao, 3 * planeMesh.fCount,
-            identity3, groundSize, groundCenter, Vec3(.5f));
+            identity3, groundSize, groundCenter, Vec3(.70f));
 
         // Draw Walls
         Vec3 boxColor = Vec3(0.75);

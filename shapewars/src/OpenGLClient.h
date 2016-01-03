@@ -1,8 +1,8 @@
 #ifndef OPENGLCLIENTH
 #define OPENGLCLIENTH
 
-#include "ShapeWars.h"
 #include "Mesh.h"
+#include "ShapeWars.h"
 #include "Vec2.h"
 #include "Vec3.h"
 
@@ -13,7 +13,7 @@
 #include <OpenGL/OpenGL.h>
 
 struct Shader {
-    GLuint progId;
+    GLuint progId = 0;
 
     // uniforms
     GLint projLoc;

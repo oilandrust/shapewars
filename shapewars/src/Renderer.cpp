@@ -36,7 +36,9 @@ void rendererBeginFrame(Renderer* /*renderer*/)
 void reloadShaders(Renderer* renderer)
 {
     // 3d textured diffuse shader
-    //glDeleteShader(renderer->texDiffShader.progId);
+    if (renderer->texDiffShader.progId != 0) {
+        glDeleteShader(renderer->texDiffShader.progId);
+    }
     createShaderProgram(&renderer->texDiffShader, "shaders/texture_diffuse.vs", "shaders/texture_diffuse.fs");
     logOpenGLErrors();
 
@@ -52,8 +54,10 @@ void reloadShaders(Renderer* renderer)
     renderer->texDiffShader.sizeLoc = glGetUniformLocation(renderer->texDiffShader.progId, "entity_size");
     renderer->texDiffShader.rotLoc = glGetUniformLocation(renderer->texDiffShader.progId, "entity_rotation");
 
-    //    // 3d color diffuse shader
-    //        glDeleteShader(renderer->flatDiffShader.progId);
+    // 3d color diffuse shader
+    if (renderer->flatDiffShader.progId != 0) {
+        glDeleteShader(renderer->flatDiffShader.progId);
+    }
     createShaderProgram(&renderer->flatDiffShader, "shaders/flat_diffuse.vs", "shaders/flat_diffuse.fs");
     logOpenGLErrors();
 
@@ -68,8 +72,10 @@ void reloadShaders(Renderer* renderer)
     renderer->flatDiffShader.rotLoc = glGetUniformLocation(renderer->flatDiffShader.progId, "entity_rotation");
     renderer->flatDiffShader.diffuseLoc = glGetUniformLocation(renderer->flatDiffShader.progId, "entity_color");
 
-    //    // 3d color flat shader
-    //    glDeleteShader(renderer->flatColorShader.progId);
+    // 3d color flat shader
+    if (renderer->flatDiffShader.progId != 0) {
+        glDeleteShader(renderer->flatColorShader.progId);
+    }
     createShaderProgram(&renderer->flatColorShader, "shaders/flat_color.vs", "shaders/flat_color.fs");
     logOpenGLErrors();
 
@@ -83,6 +89,24 @@ void reloadShaders(Renderer* renderer)
     renderer->flatColorShader.sizeLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_size");
     renderer->flatColorShader.rotLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_rotation");
     renderer->flatColorShader.diffuseLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_color");
+
+    // 3d color flat shader
+    if (renderer->groundShader.progId != 0) {
+        glDeleteShader(renderer->groundShader.progId);
+    }
+    createShaderProgram(&renderer->groundShader, "shaders/ground.vs", "shaders/ground.fs");
+    logOpenGLErrors();
+
+    glBindAttribLocation(renderer->groundShader.progId, POS_ATTRIB_LOC, "position");
+    glBindAttribLocation(renderer->groundShader.progId, NORM_ATTRIB_LOC, "normal");
+
+    renderer->groundShader.projLoc = glGetUniformLocation(renderer->flatColorShader.progId, "projection");
+    renderer->groundShader.viewLoc = glGetUniformLocation(renderer->flatColorShader.progId, "view");
+
+    renderer->groundShader.posLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_position");
+    renderer->groundShader.sizeLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_size");
+    renderer->groundShader.rotLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_rotation");
+    renderer->groundShader.diffuseLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_color");
 }
 
 void pushMeshPiece(Renderer* renderer, Shader* shader,
