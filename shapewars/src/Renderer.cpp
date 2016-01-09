@@ -5,6 +5,14 @@ void intializeRenderer(MemoryArena* arena, Renderer* renderer)
     renderer->renderQueue = pushArray<RenderPiece>(arena, MAX_RENDER_PICES);
     renderer->pieceCount = 0;
 
+    memset(&renderer->boxMesh, 0, sizeof(Mesh3D));
+    createCube(arena, &renderer->boxMesh);
+    renderer->boxVao = createIndexedVertexArray(&renderer->boxMesh);
+
+    memset(&renderer->planeMesh, 0, sizeof(Mesh3D));
+    createPlane(arena, &renderer->planeMesh);
+    renderer->planeVao = createIndexedVertexArray(&renderer->planeMesh);
+
     reloadShaders(renderer);
     logOpenGLErrors();
 }
@@ -25,7 +33,6 @@ void rendererBeginFrame(Renderer* /*renderer*/)
     // Set Global render states
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_BLEND);
-    
 
     glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
     glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
@@ -126,6 +133,30 @@ void pushMeshPiece(Renderer* renderer, Shader* shader,
     newPiece->size = size;
     newPiece->position = pos;
     newPiece->color = color;
+}
+
+void pushPlanePiece(Renderer* renderer, Shader* shader,
+    const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color)
+{
+    GLuint vao = renderer->planeVao;
+    uint32 iCount = 3 * renderer->planeMesh.fCount;
+    pushMeshPiece(renderer, shader, vao, iCount, rot, size, pos, color);
+}
+
+void pushPlanePieceTextured(Renderer* renderer, Shader* shader, GLuint texId,
+    const Mat3& rot, const Vec3& size, const Vec3& pos)
+{
+    GLuint vao = renderer->planeVao;
+    uint32 iCount = 3 * renderer->planeMesh.fCount;
+    pushMeshPieceTextured(renderer, shader, vao, iCount, texId, rot, size, pos);
+}
+
+void pushBoxPiece(Renderer* renderer, Shader* shader,
+    const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color)
+{
+    GLuint vao = renderer->boxVao;
+    uint32 iCount = 3 * renderer->boxMesh.fCount;
+    pushMeshPiece(renderer, shader, vao, iCount, rot, size, pos, color);
 }
 
 void pushMeshPieceWireframe(Renderer* renderer, Shader* shader,

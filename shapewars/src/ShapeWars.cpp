@@ -146,17 +146,25 @@ int main()
     level.height = MAP_HEIGHT;
     level.tiles = level2;
 
-    Mesh3D boxMesh;
-    createCube(&memory.persistentArena, &boxMesh);
-    GLuint boxVao = createIndexedVertexArray(&boxMesh);
+    // The cube walls.
+    Vec3* walls = pushArray<Vec3>(&memory.persistentArena, level.width * level.height);
+    uint32 wallCount = 0;
+    for (uint32 j = 0; j < level.width; j++) {
+        for (uint32 i = 0; i < level.height; i++) {
+            uint32 val = level.tiles[i + j * level.width];
+            if (val) {
+                walls[wallCount++] = Vec3(i + 0.5f, level.height - j - 0.5f, val - 0.5);
+            }
+        }
+    }
+    popArray<Vec3>(&memory.persistentArena, level.width * level.height - wallCount);
+    level.walls = walls;
+    level.wallCount = wallCount;
 
-    Mesh3D planeMesh;
-    createPlane(&memory.persistentArena, &planeMesh);
-    GLuint planeVao = createIndexedVertexArray(&planeMesh);
+    Game game;
+    game.level = &level;
 
     Debug debug;
-    debug.planeVao = planeVao;
-    debug.planeICount = 6;
     debug.planeSize = level.width;
 
     // Init the nav mesh.
@@ -177,13 +185,12 @@ int main()
     viewCamera.focalDistance = 1.f / tanf(.5f * fovy * PI / 180.f);
     viewCamera.aspect = aspect;
 
-    AIEntity bot;
-    bot.entity.position = Vec3(1, 1, 0);
+    game.bot.entity.position = Vec3(1, 1, 0);
 
     Path path;
     initializePath(&memory.persistentArena, &path, navMesh.polyCount);
 
-    setAIEntityPath(&bot, &path);
+    setAIEntityPath(&game.bot, &path);
 
     debug.path = &path;
     debug.pathVbo = createBufferObject(path.points, navMesh.polyCount + 2, GL_DYNAMIC_DRAW);
@@ -231,48 +238,19 @@ int main()
         Vec3 groundPos = intersectGround0(mouseRay);
 
         if (input.keyStates[MOUSE_RIGHT].clicked || input.keyStates[FIRE1].clicked) {
-            findPath(&memory.temporaryArena, &navMesh, bot.entity.position, groundPos, &path);
-            pullString(&memory.temporaryArena, &navMesh, bot.entity.position, groundPos, &path);
+            findPath(&memory.temporaryArena, &navMesh, game.bot.entity.position, groundPos, &path);
+            pullString(&memory.temporaryArena, &navMesh, game.bot.entity.position, groundPos, &path);
             updateBufferObject(debug.pathVbo, path.points, path.length);
             debug.pathLength = path.length;
 
-            setAIEntityPath(&bot, &path);
+            setAIEntityPath(&game.bot, &path);
         }
 
-        updateAIEntity(&bot, dt);
-        updateEntity(&bot.entity, dt);
+        updateAIEntity(&game.bot, dt);
+        updateEntity(&game.bot.entity, dt);
 
-        Mat3 identity3;
-        identity(identity3);
-
-        Vec3 groundSize(level.width, level.height, 0.0f);
-        Vec3 groundCenter(0.5f * level.width, 0.5f * level.height, 0.f);
-        pushMeshPiece(&renderer, &renderer.groundShader,
-            planeVao, 3 * planeMesh.fCount,
-            identity3, groundSize, groundCenter, Vec3(.70f));
-
-        // Draw Walls
-        Vec3 boxColor = Vec3(0.75);
-        for (uint32 j = 0; j < level.width; j++) {
-            for (uint32 i = 0; i < level.height; i++) {
-                uint32 val = level.tiles[i + j * level.width];
-                if (val) {
-                    Vec3 boxSize = Vec3(1.f);
-                    Vec3 pos = Vec3(i + 0.5f, level.height - j - 0.5f, val - 0.5);
-
-                    pushMeshPiece(&renderer, &renderer.flatDiffShader,
-                        boxVao, 3 * boxMesh.fCount,
-                        identity3, boxSize, pos, boxColor);
-                }
-            }
-        }
-
-        // Bot box
-        pushMeshPiece(&renderer, &renderer.flatDiffShader,
-            boxVao, 3 * boxMesh.fCount,
-            identity3, Vec3(0.5), bot.entity.position + Vec3(0.f, 0.f, .5f), boxColor);
-
-        debugDraw(&debug, &renderer);
+        renderGame(&game, &renderer);
+        renderDebug(&debug, &renderer);
 
         // Set the view Matrix
         Mat4 view = viewCamera.view;

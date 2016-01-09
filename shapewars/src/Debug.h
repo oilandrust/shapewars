@@ -16,8 +16,6 @@
 struct Debug {
     bool showDistanceField = false;
     bool showRegions = false;
-    GLuint planeVao;
-    GLuint planeICount;
     real32 planeSize;
     GLuint distanceFieldTexId;
     GLuint idsTexId;
@@ -52,6 +50,6 @@ struct Debug {
 
 void debugHandleInput(Debug* debug, Input* input);
 
-void debugDraw(Debug* debug, Renderer* renderer);
+void renderDebug(Debug* debug, Renderer* renderer);
 
 #endif /* Debug_h */

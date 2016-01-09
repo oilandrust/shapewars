@@ -40,6 +40,11 @@ struct Renderer {
     Shader texDiffShader;
     Shader flatColorShader;
     Shader groundShader;
+
+    Mesh3D boxMesh;
+    GLuint boxVao;
+    Mesh3D planeMesh;
+    GLuint planeVao;
 };
 
 /**
@@ -56,6 +61,15 @@ void initializeShader(Shader* shader, const char* vsSourcePath, const char* fsSo
  */
 void pushMeshPiece(Renderer* renderer, Shader* shader,
     GLuint vao, uint32 iCount,
+    const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color);
+
+void pushPlanePiece(Renderer* renderer, Shader* shader,
+    const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color);
+
+void pushPlanePieceTextured(Renderer* renderer, Shader* shader, GLuint texId,
+    const Mat3& rot, const Vec3& size, const Vec3& pos);
+
+void pushBoxPiece(Renderer* renderer, Shader* shader,
     const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color);
 
 void pushMeshPieceTextured(Renderer* renderer, Shader* shader,

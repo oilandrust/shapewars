@@ -45,7 +45,7 @@ void debugHandleInput(Debug* debug, Input* input)
     }
 }
 
-void debugDraw(Debug* debug, Renderer* renderer)
+void renderDebug(Debug* debug, Renderer* renderer)
 {
     Mat3 identity3;
     identity(identity3);
@@ -53,11 +53,11 @@ void debugDraw(Debug* debug, Renderer* renderer)
     Vec3 groundCenter(.5f * debug->planeSize, .5f * debug->planeSize, 0.f);
 
     if (debug->showDistanceField) {
-        pushMeshPieceTextured(renderer, &renderer->texDiffShader, debug->planeVao, debug->planeICount,
+        pushPlanePieceTextured(renderer, &renderer->texDiffShader,
             debug->distanceFieldTexId, identity3, groundSize, groundCenter);
     }
     else if (debug->showRegions) {
-        pushMeshPieceTextured(renderer, &renderer->texDiffShader, debug->planeVao, debug->planeICount,
+        pushPlanePieceTextured(renderer, &renderer->texDiffShader,
             debug->idsTexId, identity3, groundSize, groundCenter);
     }
 
