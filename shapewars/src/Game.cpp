@@ -79,7 +79,7 @@ void renderGame(Game* game, Renderer* renderer)
 
     // Bot box
     Vec3 botPos = game->bot.entity.position + Vec3(0.f, 0.f, .5f);
-    pushBoxPiece(renderer, &renderer->flatDiffShader, identity3, Vec3(0.5), botPos, boxColor);
+    pushBoxPiece(renderer, &renderer->flatDiffShader, game->bot.entity.orientation, Vec3(0.5), botPos, boxColor);
 }
 
 void viewCameraLookAt(ViewCamera* camera, const Vec3& position, const Vec3& target, const Vec3& up)

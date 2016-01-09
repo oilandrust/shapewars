@@ -117,22 +117,30 @@ void reloadShaders(Renderer* renderer)
     renderer->groundShader.diffuseLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_color");
 }
 
-void pushMeshPiece(Renderer* renderer, Shader* shader,
+static void pushPiece(Renderer* renderer, Shader* shader, GLuint texId,
     GLuint vao, uint32 iCount,
-    const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color)
+    const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color, RenderPieceType type)
 {
     ASSERT(renderer->pieceCount < MAX_RENDER_PICES);
 
     RenderPiece* newPiece = &renderer->renderQueue[renderer->pieceCount++];
 
-    newPiece->type = TRIMESH_COLOR;
+    newPiece->type = type;
     newPiece->shader = shader;
     newPiece->vao = vao;
+    newPiece->texId = texId;
     newPiece->iCount = iCount;
     newPiece->rotation = rot;
     newPiece->size = size;
     newPiece->position = pos;
     newPiece->color = color;
+}
+
+void pushMeshPiece(Renderer* renderer, Shader* shader,
+    GLuint vao, uint32 iCount,
+    const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color)
+{
+    pushPiece(renderer, shader, 0, vao, iCount, rot, size, pos, color, TRIMESH_COLOR);
 }
 
 void pushPlanePiece(Renderer* renderer, Shader* shader,
@@ -163,72 +171,28 @@ void pushMeshPieceWireframe(Renderer* renderer, Shader* shader,
     GLuint vao, uint32 iCount,
     const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color)
 {
-    ASSERT(renderer->pieceCount < MAX_RENDER_PICES);
-
-    RenderPiece* newPiece = &renderer->renderQueue[renderer->pieceCount++];
-
-    newPiece->type = TRIMESH_WIREFRAME;
-    newPiece->shader = shader;
-    newPiece->vao = vao;
-    newPiece->iCount = iCount;
-    newPiece->rotation = rot;
-    newPiece->size = size;
-    newPiece->position = pos;
-    newPiece->color = color;
+    pushPiece(renderer, shader, 0, vao, iCount, rot, size, pos, color, TRIMESH_WIREFRAME);
 }
 
 void pushMeshPieceTextured(Renderer* renderer, Shader* shader,
     GLuint vao, uint32 iCount, GLuint texId,
     const Mat3& rot, const Vec3& size, const Vec3& pos)
 {
-    ASSERT(renderer->pieceCount < MAX_RENDER_PICES);
-
-    RenderPiece* newPiece = &renderer->renderQueue[renderer->pieceCount++];
-
-    newPiece->type = TRIMESH_TEXTURE;
-    newPiece->shader = shader;
-    newPiece->vao = vao;
-    newPiece->iCount = iCount;
-    newPiece->texId = texId;
-    newPiece->rotation = rot;
-    newPiece->size = size;
-    newPiece->position = pos;
+    pushPiece(renderer, shader, texId, vao, iCount, rot, size, pos, Vec3(0), TRIMESH_TEXTURE);
 }
 
 void pushArrayPiece(Renderer* renderer, Shader* shader,
     GLuint vao, uint32 count, RenderPieceType type,
     const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color)
 {
-    ASSERT(renderer->pieceCount < MAX_RENDER_PICES);
-
-    RenderPiece* newPiece = &renderer->renderQueue[renderer->pieceCount++];
-
-    newPiece->type = type;
-    newPiece->shader = shader;
-    newPiece->vao = vao;
-    newPiece->iCount = count;
-    newPiece->rotation = rot;
-    newPiece->size = size;
-    newPiece->position = pos;
-    newPiece->color = color;
+    pushPiece(renderer, shader, 0, vao, count, rot, size, pos, color, type);
 }
 
 void pushIndexedArrayPiece(Renderer* renderer, Shader* shader,
     GLuint vao, uint32 count, RenderPieceType type,
     const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color)
 {
-    ASSERT(renderer->pieceCount < MAX_RENDER_PICES);
-
-    RenderPiece* newPiece = &renderer->renderQueue[renderer->pieceCount++];
-
-    newPiece->type = type;
-    newPiece->shader = shader;
-    newPiece->vao = vao;
-    newPiece->iCount = count;
-    newPiece->rotation = rot;
-    newPiece->size = size;
-    newPiece->position = pos;
-    newPiece->color = color;
+    pushPiece(renderer, shader, 0, vao, count, rot, size, pos, color, type);
 }
 
 void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)

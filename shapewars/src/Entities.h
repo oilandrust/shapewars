@@ -1,6 +1,7 @@
 #ifndef ENTITIESH
 #define ENTITIESH
 
+#include "Mat3.h"
 #include "NavMeshQuery.h"
 #include "Vec2.h"
 
@@ -10,6 +11,7 @@ struct Level;
 struct Entity {
     Vec3 position;
     Vec3 velocity;
+    Mat3 orientation;
 };
 
 struct AIEntity {

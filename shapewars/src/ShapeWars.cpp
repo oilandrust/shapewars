@@ -20,12 +20,10 @@
 #include "ShapeWars.h"
 #include "Vec3.h"
 
-// TODO: 2 days
-// Cleanup
+// TODO:
 // Antializasing
 // Wall edge rendering
 // shadow mapping
-// temporary arena
 // Bigger level
 // Debug refactoring 2
 // Fog of war
@@ -34,8 +32,6 @@
 // Start Screen
 // Pause Menu
 // Multiple entities
-
-#define DEVENV
 
 int main()
 {
@@ -98,7 +94,7 @@ int main()
     Level level;
     level.width = MAP_WIDTH;
     level.height = MAP_HEIGHT;
-    level.tiles = level2;
+    level.tiles = level1;
 
     // The cube walls.
     Vec3* walls = pushArray<Vec3>(&memory.persistentArena, level.width * level.height);
@@ -182,6 +178,7 @@ int main()
         Mat4 view = game.viewCamera.view;
         inverseTransform(view);
 
+        // Render
         rendererBeginFrame(&renderer);
         renderAll(&renderer, game.viewCamera.projection, view);
 

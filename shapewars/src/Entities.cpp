@@ -36,6 +36,14 @@ void updateAIEntity(AIEntity* aiEntity, real32 dt)
 void updateEntity(Entity* entity, real32 dt)
 {
     entity->position += dt * entity->velocity;
+
+    real32 vc = length(entity->velocity);
+    if (vc > 0.0) {
+        Vec3 forward = (1.f / vc) * entity->velocity;
+        Vec3 up = Vec3(0, 0, 1);
+        Vec3 right = cross(up, forward);
+        fromFrame(entity->orientation, right, up, forward);
+    }
 }
 
 /**
