@@ -22,33 +22,46 @@ void initializeGame(Game* game)
     viewCamera->aspect = aspect;
 
     game->bot.entity.position = Vec3(1, 1, 0);
+    identity(game->bot.entity.orientation);
 }
 
 void handleInputAndUpdateGame(Game* game, Input* input, real32 dt)
 {
+    // Update Camera
     CameraPan* camera = &game->camera;
     ViewCamera* viewCamera = &game->viewCamera;
 
     updateCameraPan(camera, input, game->level, dt);
     viewCameraLookAt(viewCamera, camera->position, camera->target, Vec3(0, 0, 1));
 
-    const Vec2& screenSize = game->screenSize;
-    Vec2 mousePos(2 * (real32)input->mouseX / screenSize.x - 1.f, 1.f - 2 * (real32)input->mouseY / screenSize.y);
-
-    Ray mouseRay = unproject(viewCamera, mousePos);
-    Vec3 groundPos = intersectGround0(mouseRay);
-
     AIEntity* bot = &game->bot;
     if (input->keyStates[MOUSE_RIGHT].clicked || input->keyStates[FIRE1].clicked) {
+        // Cast a ray against the ground
+        const Vec2& screenSize = game->screenSize;
+        Vec2 mousePos(2 * (real32)input->mouseX / screenSize.x - 1.f, 1.f - 2 * (real32)input->mouseY / screenSize.y);
 
-        MemoryArena* tempArena = game->tempArena;
-        NavMesh* navMesh = game->navMesh;
-        Path* path = &bot->path;
+        Ray mouseRay = unproject(viewCamera, mousePos);
+        Vec3 groundPos = intersectGround0(mouseRay);
 
-        findPath(tempArena, navMesh, bot->entity.position, groundPos, path);
-        pullString(tempArena, navMesh, bot->entity.position, groundPos, path);
-        updateBufferObject(game->debug->pathVbo, path->points, path->length);
-        game->debug->pathLength = path->length;
+        // If the clicked position is on a walkable area, run pathfinding.
+        if (isWalkable(game->level, groundPos)) {
+            MemoryArena* tempArena = game->tempArena;
+            NavMesh* navMesh = game->navMesh;
+            Path* path = &bot->path;
+
+            if (findPath(tempArena, navMesh, bot->entity.position, groundPos, path)) {
+                pullString(tempArena, navMesh, bot->entity.position, groundPos, path);
+
+                startSteering(bot);
+
+                // for debug visualizaiton.
+                updateBufferObject(game->debug->pathVbo, path->points, path->length);
+                game->debug->pathLength = path->length;
+            }
+            else {
+                stopSteering(bot);
+            }
+        }
     }
 
     updateAIEntity(bot, dt);

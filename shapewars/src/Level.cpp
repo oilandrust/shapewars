@@ -1,4 +1,5 @@
 #include "Level.h"
+#include "Vec3.h"
 
 uint8 level1[MAP_WIDTH * MAP_HEIGHT] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -69,3 +70,16 @@ uint8 level2[MAP_WIDTH * MAP_HEIGHT] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
+
+bool isWalkable(Level* level, const Vec3& pos)
+{
+    if (pos.x < 0 || pos.x > level->width)
+        return false;
+
+    if (pos.y < 0 || pos.y > level->height)
+        return false;
+
+    uint32 i = (uint32)pos.x;
+    uint32 j = level->height - (uint32)pos.y;
+    return level->tiles[i + j * level->width] == 0;
+}

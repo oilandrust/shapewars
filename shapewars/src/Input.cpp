@@ -82,6 +82,9 @@ void processInput(Input* input)
             else if (event.key.keysym.sym == SDLK_r) {
                 processKeyEvent(input, &event, DEBUG_RELOAD_SHADERS);
             }
+            else if (event.key.keysym.sym == SDLK_s) {
+                processKeyEvent(input, &event, DEBUG_TOGGLE_FULLSCREEN);
+            }
             else if (event.key.keysym.sym == SDLK_f) {
                 processKeyEvent(input, &event, DEBUG_SHOW_DISTANCE_FIELD);
             }

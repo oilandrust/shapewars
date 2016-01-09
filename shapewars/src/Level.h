@@ -20,4 +20,6 @@ struct Level {
     uint32 wallCount;
 };
 
+bool isWalkable(Level* level, const Vec3& pos);
+
 #endif

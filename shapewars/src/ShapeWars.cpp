@@ -41,6 +41,7 @@ int main()
 
     uint32 ScreenWidth = 640;
     uint32 ScreenHeight = 480;
+    bool fullScreen = false;
 
     uint32 windowFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
     SDL_Window* window = SDL_CreateWindow("Box War", 0, 0, ScreenWidth, ScreenHeight, windowFlags);
@@ -161,9 +162,22 @@ int main()
             || input.keyStates[ESCAPE].clicked) {
             running = false;
         }
-        // Reload the shader
+        // Reload the shaders
         if (input.keyStates[DEBUG_RELOAD_SHADERS].clicked) {
             reloadShaders(&renderer);
+        }
+        // Toggle full-screen
+        if (input.keyStates[DEBUG_TOGGLE_FULLSCREEN].clicked) {
+            if (fullScreen) {
+                int32 res = SDL_SetWindowFullscreen(window, 0);
+                ASSERT(res);
+                fullScreen = false;
+            }
+            else {
+                int32 res = SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+                ASSERT(res);
+                fullScreen = true;
+            }
         }
 
         // Update

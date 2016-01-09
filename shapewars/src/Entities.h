@@ -14,15 +14,19 @@ struct Entity {
     Mat3 orientation;
 };
 
+#define NO_TARGET 0xffffffff
+
 struct AIEntity {
     Entity entity;
     Path path;
     uint32 currentTarget;
 };
 
-void updateAIEntity(AIEntity* entity, real32 dt);
+void startSteering(AIEntity* entity);
 
-struct NavMesh;
+void stopSteering(AIEntity* entity);
+
+void updateAIEntity(AIEntity* entity, real32 dt);
 
 void updateEntity(Entity* entity, real32 dt);
 

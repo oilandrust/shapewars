@@ -3,15 +3,21 @@
 #include "Level.h"
 #include "NavMeshQuery.h"
 
-void initalizeAIEntity(AIEntity* aiEntity)
+void startSteering(AIEntity* entity)
 {
-    aiEntity->currentTarget = 0;
+    entity->currentTarget = 0;
 }
 
-void updateAIEntity(AIEntity* aiEntity, real32 dt)
+void stopSteering(AIEntity* entity)
+{
+    entity->currentTarget = NO_TARGET;
+}
+
+void updateAIEntity(AIEntity* aiEntity, real32 /* dt */)
 {
     Path* path = &aiEntity->path;
-    if (path->length == 0) {
+    if (path->length == 0 || aiEntity->currentTarget == NO_TARGET) {
+        aiEntity->entity.velocity = Vec3(0.f);
         return;
     }
 
@@ -20,16 +26,16 @@ void updateAIEntity(AIEntity* aiEntity, real32 dt)
 
     Vec3 dir = target - pos;
 
-    if (sqrLength(dir) < 0.1) {
+    if (sqrLength(dir) < 0.1f) {
         aiEntity->currentTarget++;
         if (aiEntity->currentTarget > path->length - 1) {
             path->length = 0;
-            aiEntity->currentTarget = 0;
-            aiEntity->entity.velocity = Vec3(0, 0, 0);
+            aiEntity->currentTarget = NO_TARGET;
+            aiEntity->entity.velocity = Vec3(0.f, 0.f, 0.f);
         }
     }
     else {
-        aiEntity->entity.velocity = 5 * normalize(dir);
+        aiEntity->entity.velocity = 5.f * normalize(dir);
     }
 }
 
@@ -38,9 +44,9 @@ void updateEntity(Entity* entity, real32 dt)
     entity->position += dt * entity->velocity;
 
     real32 vc = length(entity->velocity);
-    if (vc > 0.0) {
+    if (vc > 0.f) {
         Vec3 forward = (1.f / vc) * entity->velocity;
-        Vec3 up = Vec3(0, 0, 1);
+        Vec3 up = Vec3(0.f, 0.f, 1.f);
         Vec3 right = cross(up, forward);
         fromFrame(entity->orientation, right, up, forward);
     }
