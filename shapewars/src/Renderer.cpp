@@ -4,6 +4,7 @@ void intializeRenderer(MemoryArena* arena, Renderer* renderer)
 {
     renderer->renderQueue = pushArray<RenderPiece>(arena, MAX_RENDER_PICES);
     renderer->pieceCount = 0;
+    renderer->currentShader = 0;
 
     memset(&renderer->boxMesh, 0, sizeof(Mesh3D));
     createCube(arena, &renderer->boxMesh);
@@ -17,7 +18,7 @@ void intializeRenderer(MemoryArena* arena, Renderer* renderer)
     logOpenGLErrors();
 }
 
-void rendererBeginFrame(Renderer* /*renderer*/)
+void rendererBeginFrame(Renderer* renderer)
 {
     glClearDepth(1.0f);
     glEnable(GL_DEPTH_TEST);
@@ -39,10 +40,14 @@ void rendererBeginFrame(Renderer* /*renderer*/)
     logOpenGLErrors();
 
     glClear(GL_COLOR_BUFFER_BIT);
+
+    renderer->currentShader = 0;
 }
 
 void reloadShaders(Renderer* renderer)
 {
+    // TODO: compress this!
+
     // 3d textured diffuse shader
     if (renderer->texDiffShader.progId != 0) {
         glDeleteShader(renderer->texDiffShader.progId);
@@ -203,8 +208,6 @@ void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
 
     for (uint32 i = 0; i < count; i++) {
         RenderPiece* piece = renderPieces + i;
-        Shader* shader = piece->shader;
-
         if (piece->type == TRIMESH_WIREFRAME) {
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         }
@@ -212,14 +215,21 @@ void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
-        glUseProgram(shader->progId);
-        glUniformMatrix4fv(shader->viewLoc, 1, true, view.data);
-        glUniformMatrix4fv(shader->projLoc, 1, true, &projection.data[0]);
+        // Bind shader and set global uniforms if required.
+        Shader* shader = piece->shader;
+        if (shader != renderer->currentShader) {
+            glUseProgram(shader->progId);
+            renderer->currentShader = shader;
+            glUniformMatrix4fv(shader->viewLoc, 1, true, view.data);
+            glUniformMatrix4fv(shader->projLoc, 1, true, &projection.data[0]);
+        }
 
+        // Set instance uniforms.
         glUniformMatrix3fv(shader->rotLoc, 1, true, piece->rotation.data);
         glUniform3f(shader->sizeLoc, piece->size.x, piece->size.y, piece->size.z);
         glUniform3f(shader->posLoc, piece->position.x, piece->position.y, piece->position.z);
 
+        // Bind texture or color.
         if (piece->type == TRIMESH_TEXTURE) {
             glActiveTexture(GL_TEXTURE0);
             glUniform1i(shader->diffTexLoc, 0);
@@ -229,6 +239,7 @@ void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
             glUniform3f(shader->diffuseLoc, piece->color.x, piece->color.y, piece->color.z);
         }
 
+        // Draw.
         glBindVertexArray(piece->vao);
         if (piece->type == ARRAY_POINTS) {
             glDrawArrays(GL_POINTS, 0, piece->iCount);

@@ -71,6 +71,28 @@ uint8 level2[MAP_WIDTH * MAP_HEIGHT] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
+void initalizeLevel(MemoryArena* persistentArena, Level* level, uint8* levelTiles, uint32 width, uint32 height)
+{
+    level->width = width;
+    level->height = height;
+    level->tiles = levelTiles;
+
+    // The cube walls.
+    Vec3* walls = pushArray<Vec3>(persistentArena, width * height);
+    uint32 wallCount = 0;
+    for (uint32 j = 0; j < width; j++) {
+        for (uint32 i = 0; i < height; i++) {
+            uint32 val = levelTiles[i + j * width];
+            if (val) {
+                walls[wallCount++] = Vec3(i + 0.5f, height - j - 0.5f, val - 0.5);
+            }
+        }
+    }
+    popArray<Vec3>(persistentArena, width * height - wallCount);
+    level->walls = walls;
+    level->wallCount = wallCount;
+}
+
 bool isWalkable(Level* level, const Vec3& pos)
 {
     if (pos.x < 0 || pos.x > level->width)

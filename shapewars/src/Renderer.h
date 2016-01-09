@@ -36,6 +36,8 @@ struct Renderer {
     RenderPiece* renderQueue;
     uint32 pieceCount;
 
+    Shader* currentShader;
+
     Shader flatDiffShader;
     Shader texDiffShader;
     Shader flatColorShader;

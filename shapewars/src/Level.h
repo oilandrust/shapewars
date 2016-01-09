@@ -20,6 +20,8 @@ struct Level {
     uint32 wallCount;
 };
 
+void initalizeLevel(MemoryArena* persistentArena, Level* level, uint8* levelTiles, uint32 width, uint32 height);
+
 bool isWalkable(Level* level, const Vec3& pos);
 
 #endif

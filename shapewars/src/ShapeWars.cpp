@@ -33,18 +33,18 @@
 // Pause Menu
 // Multiple entities
 
-int main()
+SDL_Window* createSDLGLWindow(uint32 width, uint32 height, bool fullScreen)
 {
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         return 0;
     }
 
-    uint32 ScreenWidth = 640;
-    uint32 ScreenHeight = 480;
-    bool fullScreen = false;
-
     uint32 windowFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
-    SDL_Window* window = SDL_CreateWindow("Box War", 0, 0, ScreenWidth, ScreenHeight, windowFlags);
+    if (fullScreen) {
+        windowFlags |= SDL_WINDOW_FULLSCREEN;
+    }
+
+    SDL_Window* window = SDL_CreateWindow("Box War", 0, 0, width, height, windowFlags);
 
     if (!window) {
         return 0;
@@ -52,12 +52,11 @@ int main()
 
     SDL_Surface* window_surface = 0;
 
-    int32 monitorRefreshRate = 30;
-    int32 gameRefreshRate = monitorRefreshRate;
-    real32 targetMsPerFrame = 1000.0f / gameRefreshRate;
-
     window_surface = SDL_GetWindowSurface(window);
     ASSERT_MSG(window_surface, "SDL_error %s", SDL_GetError());
+    if (!window_surface) {
+        return 0;
+    }
 
     // Initialze OpenGL 3.1
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -68,6 +67,9 @@ int main()
     SDL_GLContext glContext = SDL_GL_CreateContext(window);
     ASSERT_MSG(!glGetError(), "Error Creating Contex");
     ASSERT_MSG(glContext, "OpenGL context could not be created! SDL Error: %s\n", SDL_GetError());
+    if (!glContext) {
+        return 0;
+    }
 
     //Initialize GLEW
     glewExperimental = GL_TRUE;
@@ -80,6 +82,24 @@ int main()
         printf("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
     }
 
+    return window;
+}
+
+int main()
+{
+    uint32 ScreenWidth = 640;
+    uint32 ScreenHeight = 480;
+    bool fullScreen = true;
+
+    SDL_Window* window = createSDLGLWindow(ScreenWidth, ScreenHeight, fullScreen);
+    if (window == NULL) {
+        return -1;
+    }
+
+    int32 monitorRefreshRate = 30;
+    int32 gameRefreshRate = monitorRefreshRate;
+    real32 targetMsPerFrame = 1000.0f / gameRefreshRate;
+
     Memory memory;
     size_t persistentMemSize = Megabytes(512);
     // Memory used to store data that have a long lifetime, ex: textures, navigation mesh data, ...
@@ -91,26 +111,9 @@ int main()
     Renderer renderer;
     intializeRenderer(&memory.persistentArena, &renderer);
 
-    // Load The Level
+    // Level
     Level level;
-    level.width = MAP_WIDTH;
-    level.height = MAP_HEIGHT;
-    level.tiles = level1;
-
-    // The cube walls.
-    Vec3* walls = pushArray<Vec3>(&memory.persistentArena, level.width * level.height);
-    uint32 wallCount = 0;
-    for (uint32 j = 0; j < level.width; j++) {
-        for (uint32 i = 0; i < level.height; i++) {
-            uint32 val = level.tiles[i + j * level.width];
-            if (val) {
-                walls[wallCount++] = Vec3(i + 0.5f, level.height - j - 0.5f, val - 0.5);
-            }
-        }
-    }
-    popArray<Vec3>(&memory.persistentArena, level.width * level.height - wallCount);
-    level.walls = walls;
-    level.wallCount = wallCount;
+    initalizeLevel(&memory.persistentArena, &level, level1, MAP_WIDTH, MAP_HEIGHT);
 
     Game game;
     game.tempArena = &memory.temporaryArena;
@@ -131,7 +134,6 @@ int main()
     initializeGame(&game);
 
     initializePath(&memory.persistentArena, &game.bot.path, navMesh.polyCount);
-
     debug.path = &game.bot.path;
     debug.pathVbo = createBufferObject(game.bot.path.points, navMesh.polyCount + 2, GL_DYNAMIC_DRAW);
     debug.pathVao = createVertexArray(debug.pathVbo);

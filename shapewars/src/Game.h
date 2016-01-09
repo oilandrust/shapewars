@@ -12,7 +12,7 @@ struct Renderer;
 struct NavMesh;
 struct Debug;
 
-/* Util structs and functions */
+/* Util structs */
 struct ViewCamera {
     Mat4 projection;
     Mat4 view;
@@ -28,12 +28,6 @@ struct Ray {
     Vec3 origin;
     Vec3 direction;
 };
-
-void viewCameraLookAt(ViewCamera* camera, const Vec3& position, const Vec3& target, const Vec3& up);
-
-Vec3 intersectGround0(const Ray& ray);
-
-Ray unproject(ViewCamera* camera, const Vec2& screenPos);
 
 /* Game Here */
 struct Game {

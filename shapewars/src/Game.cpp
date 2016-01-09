@@ -5,6 +5,36 @@
 #include "Level.h"
 #include "Renderer.h"
 
+static void viewCameraLookAt(ViewCamera* camera, const Vec3& position, const Vec3& target, const Vec3& up)
+{
+    camera->forward = normalize(target - position);
+    camera->right = normalize(cross(camera->forward, up));
+    camera->up = cross(camera->right, camera->forward);
+    camera->position = position;
+
+    lookAt(camera->view, camera->right, camera->up, camera->forward, camera->position);
+}
+
+static Vec3 intersectGround0(const Ray& ray)
+{
+    real32 t = -ray.origin.z / ray.direction.z;
+    return ray.origin + t * ray.direction;
+}
+
+static Ray unproject(ViewCamera* camera, const Vec2& screenPos)
+{
+    Ray result;
+    result.origin = camera->position;
+
+    Vec3 cameraMousePos = camera->aspect * screenPos.x * camera->right
+        + screenPos.y * camera->up
+        + camera->focalDistance * camera->forward;
+
+    result.direction = normalize(cameraMousePos);
+
+    return result;
+}
+
 void initializeGame(Game* game)
 {
     CameraPan* camera = &game->camera;
@@ -93,34 +123,4 @@ void renderGame(Game* game, Renderer* renderer)
     // Bot box
     Vec3 botPos = game->bot.entity.position + Vec3(0.f, 0.f, .5f);
     pushBoxPiece(renderer, &renderer->flatDiffShader, game->bot.entity.orientation, Vec3(0.5), botPos, boxColor);
-}
-
-void viewCameraLookAt(ViewCamera* camera, const Vec3& position, const Vec3& target, const Vec3& up)
-{
-    camera->forward = normalize(target - position);
-    camera->right = normalize(cross(camera->forward, up));
-    camera->up = cross(camera->right, camera->forward);
-    camera->position = position;
-
-    lookAt(camera->view, camera->right, camera->up, camera->forward, camera->position);
-}
-
-Vec3 intersectGround0(const Ray& ray)
-{
-    real32 t = -ray.origin.z / ray.direction.z;
-    return ray.origin + t * ray.direction;
-}
-
-Ray unproject(ViewCamera* camera, const Vec2& screenPos)
-{
-    Ray result;
-    result.origin = camera->position;
-
-    Vec3 cameraMousePos = camera->aspect * screenPos.x * camera->right
-        + screenPos.y * camera->up
-        + camera->focalDistance * camera->forward;
-
-    result.direction = normalize(cameraMousePos);
-
-    return result;
 }
