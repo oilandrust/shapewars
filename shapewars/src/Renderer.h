@@ -40,6 +40,7 @@ struct Renderer {
 
     Shader flatDiffShader;
     Shader texDiffShader;
+    Shader textShader;
     Shader flatColorShader;
     Shader groundShader;
     Shader wallShader;

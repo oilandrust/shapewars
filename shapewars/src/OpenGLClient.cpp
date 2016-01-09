@@ -57,24 +57,6 @@ void loadTexture(Texture* tex, const char* filename)
     createTexture(tex, GL_RGBA);
 }
 
-GLuint createBufferObject(Vec3* data, uint32 count, GLenum mode)
-{
-    GLuint boId;
-    glGenBuffers(1, &boId);
-    glBindBuffer(GL_ARRAY_BUFFER, boId);
-    glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vec3), data, mode);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    return boId;
-}
-
-void updateBufferObject(GLuint bufferID, Vec3* data, uint32 count)
-{
-    glBindBuffer(GL_ARRAY_BUFFER, bufferID);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, count * sizeof(Vec3), data);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
 static GLuint createBufferObject(Vec2* data, uint32 count)
 {
     GLuint boId;

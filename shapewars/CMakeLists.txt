@@ -32,8 +32,11 @@ add_executable(ShapeWars
 	src/Debug.h
 	src/Game.cpp
 	src/Game.h
+	src/Text.cpp
+	src/Text.h
 
 	src/stb_image.cpp
+	src/stb_truetype.cpp
 )
 target_link_libraries(ShapeWars ${SDL2_LIBRARY})
 target_link_libraries(ShapeWars ${GLEW_LIBRARY})

@@ -18,6 +18,7 @@
 #include "OpenGLClient.h"
 #include "Renderer.h"
 #include "ShapeWars.h"
+#include "Text.h"
 #include "Vec3.h"
 
 // TODO:
@@ -87,6 +88,7 @@ SDL_Window* createSDLGLWindow(uint32 width, uint32 height, bool fullScreen)
 
 int main()
 {
+
     uint32 ScreenWidth = 640;
     uint32 ScreenHeight = 480;
     bool fullScreen = false;
@@ -110,6 +112,10 @@ int main()
     // Initialize the rendering resources
     Renderer renderer;
     intializeRenderer(&memory.persistentArena, &renderer);
+
+    TextRenderer textRenderer;
+    initalizeTextRenderer(&memory, &textRenderer);
+    textRenderer.shader = &renderer.textShader;
 
     // Level
     Level level;
@@ -182,6 +188,8 @@ int main()
         //            }
         //        }
 
+        pushText(&textRenderer, "Some longer text.", 100, 200);
+
         // Update
         handleInputAndUpdateGame(&game, &input, dt);
         debugHandleInput(&debug, &input);
@@ -197,6 +205,7 @@ int main()
         // Render
         rendererBeginFrame(&renderer);
         renderAll(&renderer, game.viewCamera.projection, view);
+        renderText(&textRenderer);
 
         SDL_GL_SwapWindow(window);
         logOpenGLErrors();

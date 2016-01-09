@@ -3,6 +3,7 @@
 #include "Debug.h"
 #include "Input.h"
 #include "Level.h"
+#include "OpenGLClient.h"
 #include "Renderer.h"
 
 static void viewCameraLookAt(ViewCamera* camera, const Vec3& position, const Vec3& target, const Vec3& up)
