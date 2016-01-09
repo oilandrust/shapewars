@@ -10,7 +10,7 @@
 #include "Vec3.h"
 #include "debug.h"
 
-void debugProcessInput(Debug* debug, Input* input)
+void debugHandleInput(Debug* debug, Input* input)
 {
     if (input->keyStates[DEBUG_SHOW_DISTANCE_FIELD].clicked) {
         debug->showDistanceField = !debug->showDistanceField;

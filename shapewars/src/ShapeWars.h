@@ -94,6 +94,11 @@ struct MemoryArena {
     uint8* begin;
 };
 
+struct Memory {
+    MemoryArena persistentArena;
+    MemoryArena temporaryArena;
+};
+
 inline void initializeArena(MemoryArena* arena, void* base, size_t size)
 {
     arena->begin = (uint8*)base;
@@ -102,6 +107,11 @@ inline void initializeArena(MemoryArena* arena, void* base, size_t size)
     for (size_t i = 0; i < size / 4; i++) {
         ((int32*)base)[i] = 0xdeadbeef;
     }
+}
+
+inline void resetArena(MemoryArena* arena)
+{
+    arena->used = 0;
 }
 
 inline void* pushSize(MemoryArena* arena, size_t size)

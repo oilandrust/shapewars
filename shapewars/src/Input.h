@@ -16,6 +16,8 @@ enum KEY {
     RIGHT,
     FIRE1,
     FIRE2,
+    MOUSE_LEFT,
+    MOUSE_RIGHT,
     QUIT,
     ESCAPE,
 

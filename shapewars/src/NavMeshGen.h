@@ -22,7 +22,7 @@ struct DistanceField {
     real32 minVal;
 };
 
-void initializeNavMesh(MemoryArena* arena, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight);
+void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight);
 
 void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* field);
 
@@ -70,7 +70,7 @@ struct DualMesh {
     uint32 indCount;
 };
 
-void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes,
+void buildNavMesh(Memory* memory, ContourSet* contours, Mesh3D* triMeshes,
     NavMesh* mesh, DualMesh* dual);
 
 bool checkNavMesh(NavMesh* mesh);

@@ -7,6 +7,7 @@
 #include "Animation.h"
 #include "Debug.h"
 #include "Entities.h"
+#include "Game.h"
 #include "Input.h"
 #include "Level.h"
 #include "Mat3.h"
@@ -21,6 +22,10 @@
 
 // TODO: 2 days
 // Cleanup
+// Antializasing
+// Wall edge rendering
+// shadow mapping
+// temporary arena
 // Bigger level
 // Debug refactoring 2
 // Fog of war
@@ -124,13 +129,16 @@ int main()
         printf("Warning: Unable to set VSync! SDL Error: %s\n", SDL_GetError());
     }
 
-    size_t memSize = Megabytes(512);
-    MemoryArena memoryArena;
-    initializeArena(&memoryArena, new uint8[memSize], memSize);
+    Memory memory;
+    size_t persistentMemSize = Megabytes(512);
+    // Memory used to store data that have a long lifetime, ex: textures, navigation mesh data, ...
+    initializeArena(&memory.persistentArena, new uint8[persistentMemSize], persistentMemSize);
+    // Memory used for temporary usage like allocating an array for an algo, ...
+    initializeArena(&memory.temporaryArena, new uint8[persistentMemSize], persistentMemSize);
 
     // Initialize the rendering resources
     Renderer renderer;
-    intializeRenderer(&memoryArena, &renderer);
+    intializeRenderer(&memory.persistentArena, &renderer);
 
     // Load The Level
     Level level;
@@ -139,11 +147,11 @@ int main()
     level.tiles = level2;
 
     Mesh3D boxMesh;
-    createCube(&memoryArena, &boxMesh);
+    createCube(&memory.persistentArena, &boxMesh);
     GLuint boxVao = createIndexedVertexArray(&boxMesh);
 
     Mesh3D planeMesh;
-    createPlane(&memoryArena, &planeMesh);
+    createPlane(&memory.persistentArena, &planeMesh);
     GLuint planeVao = createIndexedVertexArray(&planeMesh);
 
     Debug debug;
@@ -153,7 +161,8 @@ int main()
 
     // Init the nav mesh.
     NavMesh navMesh;
-    initializeNavMesh(&memoryArena, &debug, &level, &navMesh, 1 * MAP_WIDTH, 1 * MAP_HEIGHT);
+    initializeNavMesh(&memory, &debug, &level, &navMesh, 1 * MAP_WIDTH, 1 * MAP_HEIGHT);
+    resetArena(&memory.temporaryArena);
     debug.navMesh = &navMesh;
 
     CameraPan camera;
@@ -172,7 +181,7 @@ int main()
     bot.entity.position = Vec3(1, 1, 0);
 
     Path path;
-    initializePath(&memoryArena, &path, navMesh.polyCount);
+    initializePath(&memory.persistentArena, &path, navMesh.polyCount);
 
     setAIEntityPath(&bot, &path);
 
@@ -198,6 +207,9 @@ int main()
         // Time delta in seconds
         real32 dt = targetMsPerFrame / 1000.0f;
 
+        // Update the input state
+        processInput(&input);
+
         if (input.keyStates[QUIT].clicked
             || input.keyStates[ESCAPE].clicked) {
             running = false;
@@ -207,9 +219,7 @@ int main()
             reloadShaders(&renderer);
         }
 
-        // Update the input state
-        processInput(&input);
-        debugProcessInput(&debug, &input);
+        debugHandleInput(&debug, &input);
 
         updateCameraPan(&camera, &input, &level, dt);
         viewCameraLookAt(&viewCamera, camera.position, camera.target, Vec3(0, 0, 1));
@@ -220,9 +230,9 @@ int main()
         Ray mouseRay = unproject(&viewCamera, mousePos);
         Vec3 groundPos = intersectGround0(mouseRay);
 
-        if (input.keyStates[FIRE1].clicked) {
-            findPath(&memoryArena, &navMesh, bot.entity.position, groundPos, &path);
-            pullString(&memoryArena, &navMesh, bot.entity.position, groundPos, &path);
+        if (input.keyStates[MOUSE_RIGHT].clicked || input.keyStates[FIRE1].clicked) {
+            findPath(&memory.temporaryArena, &navMesh, bot.entity.position, groundPos, &path);
+            pullString(&memory.temporaryArena, &navMesh, bot.entity.position, groundPos, &path);
             updateBufferObject(debug.pathVbo, path.points, path.length);
             debug.pathLength = path.length;
 
@@ -237,7 +247,7 @@ int main()
 
         Vec3 groundSize(level.width, level.height, 0.0f);
         Vec3 groundCenter(0.5f * level.width, 0.5f * level.height, 0.f);
-        pushMeshPiece(&renderer, &renderer.groundShader ,
+        pushMeshPiece(&renderer, &renderer.groundShader,
             planeVao, 3 * planeMesh.fCount,
             identity3, groundSize, groundCenter, Vec3(.70f));
 
@@ -261,11 +271,6 @@ int main()
         pushMeshPiece(&renderer, &renderer.flatDiffShader,
             boxVao, 3 * boxMesh.fCount,
             identity3, Vec3(0.5), bot.entity.position + Vec3(0.f, 0.f, .5f), boxColor);
-
-        // Box target
-        pushMeshPiece(&renderer, &renderer.flatDiffShader,
-            boxVao, 3 * boxMesh.fCount,
-            identity3, Vec3(.25f, .25f, 1.f), groundPos, boxColor);
 
         debugDraw(&debug, &renderer);
 

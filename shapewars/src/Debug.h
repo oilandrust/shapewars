@@ -50,7 +50,7 @@ struct Debug {
     uint32 pathLength;
 };
 
-void debugProcessInput(Debug* debug, Input* input);
+void debugHandleInput(Debug* debug, Input* input);
 
 void debugDraw(Debug* debug, Renderer* renderer);
 

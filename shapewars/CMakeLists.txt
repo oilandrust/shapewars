@@ -30,6 +30,8 @@ add_executable(ShapeWars
 	src/NavMeshQuery.h
 	src/Debug.cpp
 	src/Debug.h
+	src/Game.cpp
+	src/Game.h
 
 	src/stb_image.cpp
 )

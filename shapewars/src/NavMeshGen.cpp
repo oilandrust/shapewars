@@ -8,12 +8,17 @@
 
 #include "NavMeshGen.h"
 
-void initializeNavMesh(MemoryArena* arena, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight)
+void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight)
 {
-    uint8* rasterData = pushArray(arena, fieldHeight * fieldHeight, (uint8)0);
+    // Create binary raster of the level at the requested resolution.
+    // 0 -> not walkable
+    // 1 -> walkable
+    uint8* rasterData = pushArray(&memory->temporaryArena, fieldHeight * fieldHeight, (uint8)0);
     LevelRaster raster{ rasterData, fieldWidth, fieldHeight };
+    
     for (uint32 j = 0; j < fieldHeight; j++) {
         uint32 jw = level->height * (real32)j / fieldHeight;
+    
         for (uint32 i = 0; i < fieldWidth; i++) {
             uint32 iw = level->width * (real32)i / fieldWidth;
             if (level->tiles[iw + jw * level->width]) {
@@ -24,20 +29,23 @@ void initializeNavMesh(MemoryArena* arena, Debug* debug, Level* level, NavMesh* 
 
     // Distance field.
     DistanceField distanceField;
-    genDistanceField(arena, &raster, &distanceField);
-    debug->distanceFieldTexId = debugDistanceFieldCreateTexture(arena, &distanceField);
+    genDistanceField(&memory->temporaryArena, &raster, &distanceField);
+
+    debug->distanceFieldTexId = debugDistanceFieldCreateTexture(&memory->temporaryArena, &distanceField);
 
     // Region Ids.
     RegionIdMap regionIds;
-    genRegions(arena, &distanceField, &regionIds);
-    debug->idsTexId = debugRegionsCreateTexture(arena, &regionIds);
+    genRegions(&memory->temporaryArena, &distanceField, &regionIds);
+
+    debug->idsTexId = debugRegionsCreateTexture(&memory->temporaryArena, &regionIds);
 
     // Contours
     ContourSet contours;
-    genContours(arena, &regionIds, &contours);
+    genContours(&memory->temporaryArena, &regionIds, &contours);
+
     debug->contourCount = contours.count;
-    debug->contourVaos = pushArray<GLuint>(arena, contours.count);
-    debug->contourICounts = pushArray<uint32>(arena, contours.count);
+    debug->contourVaos = pushArray<GLuint>(&memory->temporaryArena, contours.count);
+    debug->contourICounts = pushArray<uint32>(&memory->temporaryArena, contours.count);
     for (uint32 i = 0; i < contours.count; i++) {
         uint32 vCount = contours.contours[i].count;
         Vec3* vertices = contours.contours[i].vertices;
@@ -46,11 +54,12 @@ void initializeNavMesh(MemoryArena* arena, Debug* debug, Level* level, NavMesh* 
     }
 
     // Triangulated contours.
-    Mesh3D* triangulatedCountours = pushArray<Mesh3D>(arena, contours.count);
-    triangulateContours(arena, &contours, triangulatedCountours);
+    Mesh3D* triangulatedCountours = pushArray<Mesh3D>(&memory->temporaryArena, contours.count);
+    triangulateContours(&memory->temporaryArena, &contours, triangulatedCountours);
+
     debug->contourMeshCount = contours.count;
-    debug->contourMeshes = pushArray<GLuint>(arena, contours.count);
-    debug->contourMeshesIndices = pushArray<uint32>(arena, contours.count);
+    debug->contourMeshes = pushArray<GLuint>(&memory->temporaryArena, contours.count);
+    debug->contourMeshesIndices = pushArray<uint32>(&memory->temporaryArena, contours.count);
     for (uint32 i = 0; i < contours.count; i++) {
         debug->contourMeshes[i] = createIndexedVertexArray(&triangulatedCountours[i]);
         debug->contourMeshesIndices[i] = 3 * triangulatedCountours[i].fCount;
@@ -58,11 +67,11 @@ void initializeNavMesh(MemoryArena* arena, Debug* debug, Level* level, NavMesh* 
 
     // NavMesh and connectivity.
     DualMesh dual;
-    buildNavMesh(arena, &contours, triangulatedCountours, navMesh, &dual);
+    buildNavMesh(memory, &contours, triangulatedCountours, navMesh, &dual);
 
     debug->navPolyCount = navMesh->polyCount;
-    debug->polyVaos = pushArray<GLuint>(arena, navMesh->polyCount);
-    debug->polyICounts = pushArray<uint32>(arena, navMesh->polyCount);
+    debug->polyVaos = pushArray<GLuint>(&memory->temporaryArena, navMesh->polyCount);
+    debug->polyICounts = pushArray<uint32>(&memory->temporaryArena, navMesh->polyCount);
     for (uint32 i = 0; i < navMesh->polyCount; i++) {
         debug->polyVaos[i] = createIndexedVertexArray(navMesh->vertices, navMesh->vertCount,
             navMesh->polygons + 2 * i * navMesh->maxVertPerPoly, navMesh->maxVertPerPoly);
@@ -1030,7 +1039,7 @@ static void computePolygonAdjacency(MemoryArena* arena, NavMesh* mesh, DualMesh*
     popArray<Edge>(arena, mesh->polyCount * mvp);
 }
 
-void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, NavMesh* mesh, DualMesh* dual)
+void buildNavMesh(Memory* memory, ContourSet* contours, Mesh3D* triMeshes, NavMesh* mesh, DualMesh* dual)
 {
 
     // Convert tri meshes to poly meshes. Each mesh is converted to a polygon and all polygons share the same vertices.
@@ -1045,8 +1054,10 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
     uint32 maxVertsPerPoly = mesh->maxVertPerPoly;
 
     // Vertices of the final mesh without duplication.
-    Vec3* meshVerts = pushArray<Vec3>(arena, totalVCount);
-    uint32* meshPolys = pushArray<uint32>(arena, 2 * maxVertsPerPoly * totalTriCount, NULL_INDEX);
+    Vec3* meshVerts = pushArray<Vec3>(&memory->persistentArena, totalVCount);
+    // Faces and connectivity for the final mesh
+    uint32* meshPolys = pushArray<uint32>(&memory->persistentArena, 2 * maxVertsPerPoly * totalTriCount, NULL_INDEX);
+
     mesh->vertCount = 0;
     mesh->vertices = meshVerts;
     mesh->polyCount = 0;
@@ -1058,13 +1069,13 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
         uint32* triInds = triMesh->indices;
 
         // Index mapping because we are merging vertices.
-        uint32* iMap = pushArray<uint32>(arena, triMesh->vCount);
+        uint32* iMap = pushArray<uint32>(&memory->temporaryArena, triMesh->vCount);
         for (uint32 v = 0; v < triMesh->vCount; v++) {
             iMap[v] = findOrAddVertex(mesh, triVerts[v]);
         }
 
         // Temporary polygon soup intialized with the triangles.
-        uint32* polys = pushArray<uint32>(arena, maxVertsPerPoly * triMesh->fCount);
+        uint32* polys = pushArray<uint32>(&memory->temporaryArena, maxVertsPerPoly * triMesh->fCount);
         memset(polys, 0xff, maxVertsPerPoly * triMesh->fCount * sizeof(uint32));
         for (uint32 t = 0; t < triMesh->fCount; t++) {
             uint32* poly = polys + maxVertsPerPoly * t;
@@ -1101,7 +1112,7 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
             }
             // If we can merge, do it
             if (maxEdge > 0) {
-                mergePolygons(arena, polys, nPolys, maxVertsPerPoly, p0, p1, v0, v1);
+                mergePolygons(&memory->temporaryArena, polys, nPolys, maxVertsPerPoly, p0, p1, v0, v1);
 
                 // Check that the poly is ok.
                 uint32* poly = polys + maxVertsPerPoly * p0;
@@ -1126,11 +1137,11 @@ void buildNavMesh(MemoryArena* arena, ContourSet* contours, Mesh3D* triMeshes, N
             ASSERT(polyVertCount(mesh, p) >= 3);
         }
 
-        popArray<uint32>(arena, maxVertsPerPoly * triMesh->fCount);
-        popArray<uint32>(arena, triMeshes->vCount);
+        popArray<uint32>(&memory->temporaryArena, maxVertsPerPoly * triMesh->fCount);
+        popArray<uint32>(&memory->temporaryArena, triMeshes->vCount);
     }
 
-    computePolygonAdjacency(arena, mesh, dual);
+    computePolygonAdjacency(&memory->temporaryArena, mesh, dual);
 }
 
 bool checkNavMesh(NavMesh* mesh)

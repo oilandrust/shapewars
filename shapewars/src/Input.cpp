@@ -29,6 +29,26 @@ void processInput(Input* input)
             input->mousedY = event.motion.yrel;
         } break;
 
+        case SDL_MOUSEBUTTONDOWN: {
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                input->keyStates[MOUSE_LEFT].clicked = true;
+                input->keyStates[MOUSE_LEFT].held = true;
+            }
+            else if (event.button.button == SDL_BUTTON_RIGHT) {
+                input->keyStates[MOUSE_RIGHT].clicked = true;
+                input->keyStates[MOUSE_RIGHT].held = true;
+            }
+        } break;
+
+        case SDL_MOUSEBUTTONUP: {
+            if (event.button.button == SDL_BUTTON_LEFT) {
+                input->keyStates[MOUSE_LEFT].held = false;
+            }
+            else if (event.button.button == SDL_BUTTON_RIGHT) {
+                input->keyStates[MOUSE_RIGHT].held = false;
+            }
+        } break;
+
         case SDL_QUIT: {
             input->keyStates[QUIT].clicked = true;
         } break;
