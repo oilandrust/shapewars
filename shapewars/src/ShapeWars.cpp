@@ -37,52 +37,6 @@
 
 #define DEVENV
 
-struct ViewCamera {
-    Mat4 projection;
-    Mat4 view;
-    Vec3 position;
-    Vec3 forward;
-    Vec3 up;
-    Vec3 right;
-    real32 focalDistance;
-    real32 aspect;
-};
-
-void viewCameraLookAt(ViewCamera* camera, const Vec3& position, const Vec3& target, const Vec3& up)
-{
-    camera->forward = normalize(target - position);
-    camera->right = normalize(cross(camera->forward, up));
-    camera->up = cross(camera->right, camera->forward);
-    camera->position = position;
-
-    lookAt(camera->view, camera->right, camera->up, camera->forward, camera->position);
-}
-
-struct Ray {
-    Vec3 origin;
-    Vec3 direction;
-};
-
-Vec3 intersectGround0(const Ray& ray)
-{
-    real32 t = -ray.origin.z / ray.direction.z;
-    return ray.origin + t * ray.direction;
-}
-
-Ray unproject(ViewCamera* camera, const Vec2& screenPos)
-{
-    Ray result;
-    result.origin = camera->position;
-
-    Vec3 cameraMousePos = camera->aspect * screenPos.x * camera->right
-        + screenPos.y * camera->up
-        + camera->focalDistance * camera->forward;
-
-    result.direction = normalize(cameraMousePos);
-
-    return result;
-}
-
 int main()
 {
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
@@ -162,38 +116,27 @@ int main()
     level.wallCount = wallCount;
 
     Game game;
+    game.tempArena = &memory.temporaryArena;
     game.level = &level;
+    game.screenSize = Vec2(ScreenWidth, ScreenHeight);
 
     Debug debug;
     debug.planeSize = level.width;
+    game.debug = &debug;
 
     // Init the nav mesh.
     NavMesh navMesh;
-    initializeNavMesh(&memory, &debug, &level, &navMesh, 1 * MAP_WIDTH, 1 * MAP_HEIGHT);
+    initializeNavMesh(&memory, &debug, &level, &navMesh, 1 * level.width, 1 * level.height);
     resetArena(&memory.temporaryArena);
     debug.navMesh = &navMesh;
+    game.navMesh = &navMesh;
 
-    CameraPan camera;
-    initializeCameraPan(&camera, Vec2(level.width, level.height));
-    camera.screenWidth = ScreenWidth;
-    camera.screenHeight = ScreenHeight;
+    initializeGame(&game);
 
-    ViewCamera viewCamera;
-    real32 aspect = (real32)ScreenWidth / (real32)ScreenHeight;
-    real32 fovy = 40.f;
-    perspective(viewCamera.projection, fovy, aspect, 1.f, 200.f);
-    viewCamera.focalDistance = 1.f / tanf(.5f * fovy * PI / 180.f);
-    viewCamera.aspect = aspect;
+    initializePath(&memory.persistentArena, &game.bot.path, navMesh.polyCount);
 
-    game.bot.entity.position = Vec3(1, 1, 0);
-
-    Path path;
-    initializePath(&memory.persistentArena, &path, navMesh.polyCount);
-
-    setAIEntityPath(&game.bot, &path);
-
-    debug.path = &path;
-    debug.pathVbo = createBufferObject(path.points, navMesh.polyCount + 2, GL_DYNAMIC_DRAW);
+    debug.path = &game.bot.path;
+    debug.pathVbo = createBufferObject(game.bot.path.points, navMesh.polyCount + 2, GL_DYNAMIC_DRAW);
     debug.pathVao = createVertexArray(debug.pathVbo);
 
     Input input;
@@ -217,6 +160,7 @@ int main()
         // Update the input state
         processInput(&input);
 
+        // Exit
         if (input.keyStates[QUIT].clicked
             || input.keyStates[ESCAPE].clicked) {
             running = false;
@@ -226,39 +170,20 @@ int main()
             reloadShaders(&renderer);
         }
 
+        // Update
+        handleInputAndUpdateGame(&game, &input, dt);
         debugHandleInput(&debug, &input);
 
-        updateCameraPan(&camera, &input, &level, dt);
-        viewCameraLookAt(&viewCamera, camera.position, camera.target, Vec3(0, 0, 1));
-
-        Vec2 mousePos(2 * (real32)input.mouseX / ScreenWidth - 1.f,
-            1.f - 2 * (real32)input.mouseY / ScreenHeight);
-
-        Ray mouseRay = unproject(&viewCamera, mousePos);
-        Vec3 groundPos = intersectGround0(mouseRay);
-
-        if (input.keyStates[MOUSE_RIGHT].clicked || input.keyStates[FIRE1].clicked) {
-            findPath(&memory.temporaryArena, &navMesh, game.bot.entity.position, groundPos, &path);
-            pullString(&memory.temporaryArena, &navMesh, game.bot.entity.position, groundPos, &path);
-            updateBufferObject(debug.pathVbo, path.points, path.length);
-            debug.pathLength = path.length;
-
-            setAIEntityPath(&game.bot, &path);
-        }
-
-        updateAIEntity(&game.bot, dt);
-        updateEntity(&game.bot.entity, dt);
-
+        // Draw
         renderGame(&game, &renderer);
         renderDebug(&debug, &renderer);
 
         // Set the view Matrix
-        Mat4 view = viewCamera.view;
+        Mat4 view = game.viewCamera.view;
         inverseTransform(view);
 
         rendererBeginFrame(&renderer);
-
-        renderAll(&renderer, viewCamera.projection, view);
+        renderAll(&renderer, game.viewCamera.projection, view);
 
         SDL_GL_SwapWindow(window);
         logOpenGLErrors();

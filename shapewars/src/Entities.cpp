@@ -3,15 +3,14 @@
 #include "Level.h"
 #include "NavMeshQuery.h"
 
-void setAIEntityPath(AIEntity* aiEntity, Path* path)
+void initalizeAIEntity(AIEntity* aiEntity)
 {
-    aiEntity->path = path;
     aiEntity->currentTarget = 0;
 }
 
 void updateAIEntity(AIEntity* aiEntity, real32 dt)
 {
-    Path* path = aiEntity->path;
+    Path* path = &aiEntity->path;
     if (path->length == 0) {
         return;
     }
@@ -53,7 +52,7 @@ void initializeCameraPan(CameraPan* camera, const Vec2& levelBounds)
     camera->velocity = { 0, 0 };
     camera->accel = { 0, 0 };
     camera->drag = 10.0f;
-    
+
     // acceleration and drag in m/s;
     camera->drag = 20.0f;
     camera->acc = 200.0f;

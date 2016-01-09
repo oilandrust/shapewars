@@ -1,12 +1,11 @@
 #ifndef ENTITIESH
 #define ENTITIESH
 
-#include "OpenGLClient.h"
+#include "NavMeshQuery.h"
 #include "Vec2.h"
 
 struct Input;
 struct Level;
-struct Path;
 
 struct Entity {
     Vec3 position;
@@ -15,15 +14,13 @@ struct Entity {
 
 struct AIEntity {
     Entity entity;
-    Path* path;
+    Path path;
     uint32 currentTarget;
 };
 
 void updateAIEntity(AIEntity* entity, real32 dt);
 
 struct NavMesh;
-
-void setAIEntityPath(AIEntity* aiEntity, Path* path);
 
 void updateEntity(Entity* entity, real32 dt);
 
