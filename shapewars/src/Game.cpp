@@ -117,7 +117,7 @@ void renderGame(Game* game, Renderer* renderer)
     uint32 wallCount = level->wallCount;
 
     for (uint32 i = 0; i < wallCount; i++) {
-        pushBoxPiece(renderer, &renderer->flatDiffShader, identity3, boxSize, walls[i], boxColor);
+        pushBoxPiece(renderer, &renderer->wallShader, identity3, boxSize, walls[i], boxColor);
     }
 
     // Bot box

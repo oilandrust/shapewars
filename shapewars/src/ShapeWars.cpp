@@ -89,7 +89,7 @@ int main()
 {
     uint32 ScreenWidth = 640;
     uint32 ScreenHeight = 480;
-    bool fullScreen = true;
+    bool fullScreen = false;
 
     SDL_Window* window = createSDLGLWindow(ScreenWidth, ScreenHeight, fullScreen);
     if (window == NULL) {
@@ -169,18 +169,18 @@ int main()
             reloadShaders(&renderer);
         }
         // Toggle full-screen
-        if (input.keyStates[DEBUG_TOGGLE_FULLSCREEN].clicked) {
-            if (fullScreen) {
-                int32 res = SDL_SetWindowFullscreen(window, 0);
-                ASSERT(res);
-                fullScreen = false;
-            }
-            else {
-                int32 res = SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-                ASSERT(res);
-                fullScreen = true;
-            }
-        }
+        //        if (input.keyStates[DEBUG_TOGGLE_FULLSCREEN].clicked) {
+        //            if (fullScreen) {
+        //                int32 res = SDL_SetWindowFullscreen(window, 0);
+        //                ASSERT(res);
+        //                fullScreen = false;
+        //            }
+        //            else {
+        //                int32 res = SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+        //                ASSERT(res);
+        //                fullScreen = true;
+        //            }
+        //        }
 
         // Update
         handleInputAndUpdateGame(&game, &input, dt);

@@ -42,6 +42,7 @@ struct Renderer {
     Shader texDiffShader;
     Shader flatColorShader;
     Shader groundShader;
+    Shader wallShader;
 
     Mesh3D boxMesh;
     GLuint boxVao;

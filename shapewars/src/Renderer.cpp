@@ -103,7 +103,7 @@ void reloadShaders(Renderer* renderer)
     renderer->flatColorShader.rotLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_rotation");
     renderer->flatColorShader.diffuseLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_color");
 
-    // 3d color flat shader
+    // ground shader
     if (renderer->groundShader.progId != 0) {
         glDeleteShader(renderer->groundShader.progId);
     }
@@ -120,6 +120,24 @@ void reloadShaders(Renderer* renderer)
     renderer->groundShader.sizeLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_size");
     renderer->groundShader.rotLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_rotation");
     renderer->groundShader.diffuseLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_color");
+
+    // wall shader
+    if (renderer->wallShader.progId != 0) {
+        glDeleteShader(renderer->wallShader.progId);
+    }
+    createShaderProgram(&renderer->wallShader, "shaders/wall.vs", "shaders/wall.fs");
+    logOpenGLErrors();
+
+    glBindAttribLocation(renderer->wallShader.progId, POS_ATTRIB_LOC, "position");
+    glBindAttribLocation(renderer->wallShader.progId, NORM_ATTRIB_LOC, "normal");
+
+    renderer->wallShader.projLoc = glGetUniformLocation(renderer->flatColorShader.progId, "projection");
+    renderer->wallShader.viewLoc = glGetUniformLocation(renderer->flatColorShader.progId, "view");
+
+    renderer->wallShader.posLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_position");
+    renderer->wallShader.sizeLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_size");
+    renderer->wallShader.rotLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_rotation");
+    renderer->wallShader.diffuseLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_color");
 }
 
 static void pushPiece(Renderer* renderer, Shader* shader, GLuint texId,
