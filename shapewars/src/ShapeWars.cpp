@@ -22,6 +22,9 @@
 #include "Vec3.h"
 
 // TODO:
+// Fix fonts
+// Fix full screen toggle
+// Memory alignment
 // Antializasing
 // Wall edge rendering
 // shadow mapping
@@ -34,10 +37,25 @@
 // Pause Menu
 // Multiple entities
 
-SDL_Window* createSDLGLWindow(uint32 width, uint32 height, bool fullScreen)
+SDL_Window* createSDLGLWindow(uint32& width, uint32& height, bool hd, bool fullScreen)
 {
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         return 0;
+    }
+
+    SDL_DisplayMode current;
+    for (int32 i = 0; i < SDL_GetNumVideoDisplays(); i++) {
+        int32 ret = SDL_GetCurrentDisplayMode(i, &current);
+        ASSERT(ret == 0);
+        if (ret != 0)
+            SDL_Log("Could not get display mode for video display #%d: %s", i, SDL_GetError());
+        else
+            SDL_Log("Display #%d: current display mode is %dx%dpx @ %dhz. \n", i, current.w, current.h, current.refresh_rate);
+    }
+
+    if (hd) {
+        width = current.w;
+        height = current.h;
     }
 
     uint32 windowFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL;
@@ -88,17 +106,17 @@ SDL_Window* createSDLGLWindow(uint32 width, uint32 height, bool fullScreen)
 
 int main()
 {
-
     uint32 ScreenWidth = 640;
     uint32 ScreenHeight = 480;
-    bool fullScreen = false;
+    bool fullScreen = true;
+    bool hd = true;
 
-    SDL_Window* window = createSDLGLWindow(ScreenWidth, ScreenHeight, fullScreen);
+    SDL_Window* window = createSDLGLWindow(ScreenWidth, ScreenHeight, hd, fullScreen);
     if (window == NULL) {
         return -1;
     }
 
-    int32 monitorRefreshRate = 30;
+    int32 monitorRefreshRate = 60;
     int32 gameRefreshRate = monitorRefreshRate;
     real32 targetMsPerFrame = 1000.0f / gameRefreshRate;
 
@@ -116,6 +134,7 @@ int main()
     TextRenderer textRenderer;
     initalizeTextRenderer(&memory, &textRenderer);
     textRenderer.shader = &renderer.textShader;
+    textRenderer.screenRes = Vec2(ScreenWidth, ScreenHeight);
 
     // Level
     Level level;
@@ -151,6 +170,7 @@ int main()
     uint64 lastCounter = SDL_GetPerformanceCounter();
     uint64 endCounter = 0;
     uint64 counterFrequency = SDL_GetPerformanceFrequency();
+    real32 fps = 0.f;
 
     // Check error at initialization
     ASSERT_MSG(!glGetError(), "OpenGl Error after initialization");
@@ -161,6 +181,7 @@ int main()
 
         // Time delta in seconds
         real32 dt = targetMsPerFrame / 1000.0f;
+        debug.fps = fps;
 
         // Update the input state
         processInput(&input);
@@ -188,8 +209,6 @@ int main()
         //            }
         //        }
 
-        pushText(&textRenderer, "Some longer text.", 100, 200);
-
         // Update
         handleInputAndUpdateGame(&game, &input, dt);
         debugHandleInput(&debug, &input);
@@ -197,6 +216,7 @@ int main()
         // Draw
         renderGame(&game, &renderer);
         renderDebug(&debug, &renderer);
+        renderDebugText(&debug, &textRenderer);
 
         // Set the view Matrix
         Mat4 view = game.viewCamera.view;
@@ -208,7 +228,6 @@ int main()
         renderText(&textRenderer);
 
         SDL_GL_SwapWindow(window);
-        logOpenGLErrors();
 
         // Update the clock
         endCounter = SDL_GetPerformanceCounter();
@@ -223,6 +242,7 @@ int main()
             couterElapsed = endCounter - lastCounter;
             msElapsed += ((1000.0f * (real32)couterElapsed) / (real32)counterFrequency);
         }
+        fps = 1000.f / msElapsed;
         lastCounter = endCounter;
     }
 

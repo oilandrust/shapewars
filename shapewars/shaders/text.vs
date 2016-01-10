@@ -7,12 +7,13 @@ layout(location = 3) in vec2 uv;
 // Normal in Object space
 smooth out vec2 tex_coords;
 
-uniform mat4 projection;
+uniform vec2 resolution;
 
 void main()
 {
 	tex_coords = uv;
-	vec2 pos = 2*position / vec2(640, 480);
+	vec2 pos = position / resolution;
+	pos.x = pos.x-1;
 	pos.y = 1-pos.y;
 	gl_Position = vec4(pos, 1,1);
 }

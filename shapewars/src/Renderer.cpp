@@ -67,7 +67,7 @@ void reloadShaders(Renderer* renderer)
     renderer->texDiffShader.sizeLoc = glGetUniformLocation(renderer->texDiffShader.progId, "entity_size");
     renderer->texDiffShader.rotLoc = glGetUniformLocation(renderer->texDiffShader.progId, "entity_rotation");
 
-    // 3d textured diffuse shader
+    // font shader
     if (renderer->textShader.progId != 0) {
         glDeleteShader(renderer->textShader.progId);
     }
@@ -78,6 +78,7 @@ void reloadShaders(Renderer* renderer)
     glBindAttribLocation(renderer->textShader.progId, UV_ATTRIB_LOC, "uv");
 
     renderer->textShader.diffTexLoc = glGetUniformLocation(renderer->textShader.progId, "diffuse");
+    renderer->textShader.resolutionLoc = glGetUniformLocation(renderer->textShader.progId, "resolution");
 
     // 3d color diffuse shader
     if (renderer->flatDiffShader.progId != 0) {

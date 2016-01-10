@@ -23,6 +23,7 @@ struct Shader {
     GLint diffuseLoc;
     GLint rotLoc;
     GLint diffTexLoc;
+    GLint resolutionLoc;
 };
 
 #define POS_ATTRIB_LOC 0

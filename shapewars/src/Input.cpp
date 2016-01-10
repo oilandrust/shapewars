@@ -106,6 +106,9 @@ void processInput(Input* input)
             else if (event.key.keysym.sym == SDLK_p) {
                 processKeyEvent(input, &event, DEBUG_SHOW_PATH);
             }
+            else if (event.key.keysym.sym == SDLK_h) {
+                processKeyEvent(input, &event, DEBUG_SHOW_MENU);
+            }
         }
     }
 }

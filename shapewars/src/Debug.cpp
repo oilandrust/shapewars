@@ -6,7 +6,10 @@
 //
 //
 
+#include "Input.h"
 #include "Mat3.h"
+#include "Renderer.h"
+#include "Text.h"
 #include "Vec3.h"
 #include "debug.h"
 
@@ -42,6 +45,9 @@ void debugHandleInput(Debug* debug, Input* input)
     }
     if (input->keyStates[DEBUG_SHOW_PATH].clicked) {
         debug->showPath = !debug->showPath;
+    }
+    if (input->keyStates[DEBUG_SHOW_MENU].clicked) {
+        debug->showText = !debug->showText;
     }
 }
 
@@ -107,4 +113,30 @@ void renderDebug(Debug* debug, Renderer* renderer)
             debug->pathVao, debug->pathLength, ARRAY_LINE_STRIP,
             identity3, Vec3(1.f), Vec3(0.f), Vec3(1.f));
     }
+}
+
+void renderDebugText(Debug* debug, TextRenderer* tr)
+{
+    if (!debug->showText) {
+        return;
+    }
+
+    beginText(tr, 32.f, 0.f);
+    char buff[128];
+    snprintf(buff, 128, "fps: %f", debug->fps);
+    pushText(tr, buff);
+    pushLine(tr, "Debug shortcuts:");
+    pushLine(tr, "NavMesh:");
+    pushLine(tr, "    - (f): Show distance field.");
+    pushLine(tr, "    - (i): Show regions.");
+    pushLine(tr, "    - (c): Show region contours.");
+    pushLine(tr, "    - (t): Show triangulated contours.");
+    pushLine(tr, "    - (n): Show polygon navmesh.");
+    pushLine(tr, "    - (d): Show navmesh dual (connectivity).");
+    pushLine(tr, "Path finding:");
+    pushLine(tr, "    - (p): Show path, also shows path polygons if navmesh active.");
+    pushLine(tr, "Misc:");
+    pushLine(tr, "    - (h): Hide/show debug menu.");
+    pushLine(tr, "    - (r): Reload all shaders.");
+    pushLine(tr, "    - (s): toggle full-screen.");
 }

@@ -9,9 +9,12 @@
 #ifndef Debug_h
 #define Debug_h
 
-#include "Input.h"
 #include "NavMeshQuery.h"
-#include "Renderer.h"
+#include "OpenGLClient.h"
+
+struct Renderer;
+struct TextRenderer;
+struct Input;
 
 struct Debug {
     bool showDistanceField = false;
@@ -46,10 +49,15 @@ struct Debug {
     GLuint pathVao;
     GLuint pathVbo;
     uint32 pathLength;
+
+    bool showText = true;
+    real32 fps;
 };
 
 void debugHandleInput(Debug* debug, Input* input);
 
 void renderDebug(Debug* debug, Renderer* renderer);
+
+void renderDebugText(Debug* debug, TextRenderer* tr);
 
 #endif /* Debug_h */
