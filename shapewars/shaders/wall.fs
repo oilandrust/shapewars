@@ -7,7 +7,7 @@ in vec3 uvw;
 out vec4 fragment;
 
 const vec3 lightDir = normalize(vec3(0.5,-0.7,1));
-const vec3 cline = vec3(0.6);
+const vec3 cline = vec3(1,0,0);
 
 void main()
 {
@@ -22,9 +22,9 @@ void main()
 	ur = ur - 0.5;
 	vr = vr - 0.5;
 	wr = wr - 0.5;
-	float ud = exp(-ur*ur/0.005);
-	float vd = exp(-vr*vr/0.005);
-	float wd = exp(-wr*wr/0.005);
+	float ud = exp(-ur*ur/0.0005);
+	float vd = exp(-vr*vr/0.0005);
+	float wd = exp(-wr*wr/0.0005);
 
 	ud *= 1.0 - abs(dot(norm,vec3(1,0,0)));
 	vd *= 1.0 - abs(dot(norm,vec3(0,1,0)));

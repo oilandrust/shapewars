@@ -88,6 +88,12 @@ inline uint32 roundReal32toInt32(real32 r)
     return (uint32)floor(r + 0.5f);
 }
 
+inline real32 randRangeReal32(real32 min, real32 max)
+{
+    real32 range = max - min;
+    return min + range * rand() / RAND_MAX;
+}
+
 struct MemoryArena {
     size_t used;
     size_t size;

@@ -88,6 +88,7 @@ void initalizeLevel(MemoryArena* persistentArena, Level* level, uint8* levelTile
             }
         }
     }
+
     popArray<Vec3>(persistentArena, width * height - wallCount);
     level->walls = walls;
     level->wallCount = wallCount;

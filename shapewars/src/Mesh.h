@@ -19,6 +19,8 @@ struct Mesh3D {
 
 void createCube(MemoryArena* arena, Mesh3D* mesh);
 
+void pushBox(Vec3* verts, Vec3* norms, uint32* inds, const Vec3& center, const Vec3& size, uint32& vCount, uint32& iCount);
+
 void createPlane(MemoryArena* arena, Mesh3D* mesh);
 
 #endif

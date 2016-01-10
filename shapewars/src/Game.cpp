@@ -112,7 +112,7 @@ void renderGame(Game* game, Renderer* renderer)
     pushPlanePiece(renderer, &renderer->groundShader, identity3, groundSize, groundCenter, Vec3(.70f));
 
     // Draw Walls
-    Vec3 boxColor = Vec3(0.75);
+    Vec3 boxColor = Vec3(0.8f);
     Vec3 boxSize = Vec3(1.f);
     Vec3* walls = level->walls;
     uint32 wallCount = level->wallCount;

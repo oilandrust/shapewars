@@ -75,18 +75,19 @@ void initializeCameraPan(CameraPan* camera, const Vec2& levelBounds)
 void updateCameraPan(CameraPan* camera, Input* input, Level* level, real32 dt)
 {
     Vec3 accel = Vec3(0, 0, 0);
-    if (input->keyStates[UP].held || input->mouseY == 0) {
+    if (input->keyStates[UP].held || input->mouseY <= 10) {
         accel.y = 1.0f;
     }
-    if (input->keyStates[DOWN].held || input->mouseY == camera->screenHeight - 1) {
+    if (input->keyStates[DOWN].held || input->mouseY >= camera->screenHeight - 10) {
         accel.y = -1.0f;
     }
-    if (input->keyStates[LEFT].held || input->mouseX == 0) {
+    if (input->keyStates[LEFT].held || input->mouseX <= 10) {
         accel.x = -1.0f;
     }
-    if (input->keyStates[RIGHT].held || input->mouseX == camera->screenWidth - 1) {
+    if (input->keyStates[RIGHT].held || input->mouseX >= camera->screenWidth - 10) {
         accel.x = 1.0f;
     }
+
     if (std::abs(accel.x) > 0.0f || std::abs(accel.y) > 0.0f) {
         accel = normalize(accel);
     }

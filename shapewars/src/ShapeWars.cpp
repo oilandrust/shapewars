@@ -22,7 +22,6 @@
 #include "Vec3.h"
 
 // TODO:
-// Fix fonts
 // Fix full screen toggle
 // Memory alignment
 // Antializasing
@@ -104,6 +103,61 @@ SDL_Window* createSDLGLWindow(uint32& width, uint32& height, bool hd, bool fullS
     return window;
 }
 
+void generateLandscape(MemoryArena* tempArena, real32 width, real32 height, GLuint& vao, uint32& count)
+{
+    uint32 cubeCount = 300;
+    Vec3* pBuffer = pushArray<Vec3>(tempArena, 24 * cubeCount);
+    Vec3* nBuffer = pushArray<Vec3>(tempArena, 24 * cubeCount);
+    uint32* iBuffer = pushArray<uint32>(tempArena, 36 * cubeCount);
+
+    uint32 vCount = 0;
+    uint32 iCount = 0;
+
+    real32 borderX = 0.5 * width;
+    real32 borderY = 0.5 * height;
+
+    real32 bMinSize = 1;
+    real32 bMaxSize = 6;
+
+    uint32 currenCount = 0;
+    // Draw random boxes outside the level
+    while (currenCount < cubeCount) {
+        Vec3 c(randRangeReal32(-borderX, width + borderX), randRangeReal32(-borderY, height + borderY), 0.f);
+        if (c.x >= 0.f && c.x <= width && c.y >= 0.f && c.y <= height) {
+            continue;
+        }
+        Vec3 s(randRangeReal32(bMinSize, bMaxSize), randRangeReal32(bMinSize, bMaxSize), randRangeReal32(bMinSize, bMaxSize));
+        // Clip with the level bounds.
+        if (c.x < .0f && c.x + 0.5f * s.x > .0f) {
+            c.x = -0.5f * s.x;
+        }
+        if (c.x > width && c.x - 0.5f * s.x < width) {
+            c.x = width + 0.5f * s.x;
+        }
+        if (c.y < 0 && c.y + 0.5f * s.y > .0f) {
+            c.y = -0.5f * s.y;
+        }
+        if (c.y > height && c.y - 0.5f * s.y < height) {
+            c.y = height + 0.5f * s.y;
+        }
+        pushBox(pBuffer, nBuffer, iBuffer, c, s, vCount, iCount);
+        currenCount++;
+    }
+
+    Mesh3D mesh;
+    memset(&mesh, 0, sizeof(Mesh3D));
+    mesh.positions = pBuffer;
+    mesh.normals = nBuffer;
+    mesh.indices = iBuffer;
+    mesh.vCount = vCount;
+    mesh.fCount = 12 * cubeCount;
+
+    vao = createIndexedVertexArray(&mesh);
+    count = iCount;
+
+    resetArena(tempArena);
+}
+
 int main()
 {
     uint32 ScreenWidth = 640;
@@ -139,6 +193,10 @@ int main()
     // Level
     Level level;
     initalizeLevel(&memory.persistentArena, &level, level1, MAP_WIDTH, MAP_HEIGHT);
+
+    GLuint landscapeVao;
+    uint32 landscapeCount = 0;
+    generateLandscape(&memory.temporaryArena, MAP_WIDTH, MAP_HEIGHT, landscapeVao, landscapeCount);
 
     Game game;
     game.tempArena = &memory.temporaryArena;
@@ -213,8 +271,15 @@ int main()
         handleInputAndUpdateGame(&game, &input, dt);
         debugHandleInput(&debug, &input);
 
+        Mat3 rot;
+        identity(rot);
+        pushPlanePiece(&renderer, &renderer.flatDiffShader, rot,
+            Vec3(2.5f * level.width, 2.5f * level.height, 1), Vec3(0.5f * level.width, 0.5f * level.height, -.1), Vec3(0.6));
+        pushMeshPiece(&renderer, &renderer.flatDiffShader, landscapeVao, landscapeCount, rot, Vec3(1), Vec3(0), Vec3(0.7));
+
         // Draw
         renderGame(&game, &renderer);
+
         renderDebug(&debug, &renderer);
         renderDebugText(&debug, &textRenderer);
 

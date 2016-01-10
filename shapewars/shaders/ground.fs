@@ -7,7 +7,7 @@ in vec2 uv;
 out vec4 fragment;
 
 const vec3 lightDir = normalize(vec3(0.5,-0.7,1));
-const vec3 cline = vec3(0.6);
+const vec3 cline = vec3(0,0,1);
 
 void main()
 {
@@ -19,8 +19,8 @@ void main()
 
 	ur = ur - 0.5;
 	vr = vr - 0.5;
-	float ud = exp(-ur*ur/0.0001);
-	float vd = exp(-vr*vr/0.0001);
+	float ud = exp(-ur*ur/0.00005);
+	float vd = exp(-vr*vr/0.00005);
 
 	// Diffuse Lighting
 	vec3 diff = mix(diffuse, cline, vd);
