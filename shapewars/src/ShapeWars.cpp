@@ -3,6 +3,7 @@
 #include <GL/glew.h>
 #include <SDL.h>
 #include <SDL_opengl.h>
+#undef main
 
 #include "Animation.h"
 #include "Debug.h"
@@ -20,6 +21,17 @@
 #include "ShapeWars.h"
 #include "Text.h"
 #include "Vec3.h"
+
+#include <stdio.h>  /* defines FILENAME_MAX */
+#ifdef _WIN32
+    #include <direct.h>
+    #define GetCurrentDir _getcwd
+#else
+    #include <unistd.h>
+    #define GetCurrentDir getcwd
+#endif
+
+ 
 
 // TODO:
 // Fix full screen toggle
@@ -160,6 +172,13 @@ void generateLandscape(MemoryArena* tempArena, real32 width, real32 height, GLui
 
 int main()
 {
+	char cCurrentPath[FILENAME_MAX];
+	if (!GetCurrentDir(cCurrentPath, sizeof(cCurrentPath))) {
+		return errno;
+	}
+	cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
+	printf ("Working directory is %s", cCurrentPath);
+
     uint32 ScreenWidth = 640;
     uint32 ScreenHeight = 480;
     bool fullScreen = true;
@@ -183,6 +202,7 @@ int main()
 
     // Initialize the rendering resources
     Renderer renderer;
+	memset(&renderer, 0, sizeof(Renderer));
     intializeRenderer(&memory.persistentArena, &renderer);
 
     TextRenderer textRenderer;
@@ -204,11 +224,14 @@ int main()
     game.screenSize = Vec2(ScreenWidth, ScreenHeight);
 
     Debug debug;
+	memset(&debug, 0, sizeof(Debug));
     debug.planeSize = level.width;
+	debug.showText = true;
     game.debug = &debug;
 
     // Init the nav mesh.
     NavMesh navMesh;
+	memset(&navMesh, 0, sizeof(navMesh));
     initializeNavMesh(&memory, &debug, &level, &navMesh, 1 * level.width, 1 * level.height);
     resetArena(&memory.temporaryArena);
     debug.navMesh = &navMesh;
@@ -254,18 +277,18 @@ int main()
             reloadShaders(&renderer);
         }
         // Toggle full-screen
-        //        if (input.keyStates[DEBUG_TOGGLE_FULLSCREEN].clicked) {
-        //            if (fullScreen) {
-        //                int32 res = SDL_SetWindowFullscreen(window, 0);
-        //                ASSERT(res);
-        //                fullScreen = false;
-        //            }
-        //            else {
-        //                int32 res = SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-        //                ASSERT(res);
-        //                fullScreen = true;
-        //            }
-        //        }
+        if (input.keyStates[DEBUG_TOGGLE_FULLSCREEN].clicked) {
+			if (fullScreen) {
+               int32 res = SDL_SetWindowFullscreen(window, 0);
+               ASSERT(res);
+               fullScreen = false;
+			}
+			else {
+				int32 res = SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+				ASSERT(res);
+				fullScreen = true;
+           }
+		}
 
         // Update
         handleInputAndUpdateGame(&game, &input, dt);
@@ -289,8 +312,8 @@ int main()
 
         // Render
         rendererBeginFrame(&renderer);
-        renderAll(&renderer, game.viewCamera.projection, view);
-        renderText(&textRenderer);
+		renderAll(&renderer, game.viewCamera.projection, view);
+		renderText(&textRenderer);
 
         SDL_GL_SwapWindow(window);
 
@@ -309,6 +332,8 @@ int main()
         }
         fps = 1000.f / msElapsed;
         lastCounter = endCounter;
+
+		logOpenGLErrors();
     }
 
     // Cleanup

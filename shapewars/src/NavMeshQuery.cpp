@@ -17,7 +17,7 @@ struct Node {
 
 struct Heap {
     Node nodes[1024];
-    uint32 next = 0;
+    uint32 next;
 };
 
 static inline uint32 parent(uint32 node)
@@ -169,8 +169,10 @@ bool findPath(MemoryArena* arena, NavMesh* navMesh, const Vec3& start, const Vec
     Vec3* polyCenters = navMesh->polyCenters;
 
     Heap heap;
+	memset(&heap, 0, sizeof(Heap));
     real32 distStartEnd = length(polyCenters[startPoly] - polyCenters[endPoly]);
-    push(&heap, { .0f, distStartEnd, startPoly, 0 });
+	Node n = { .0f, distStartEnd, startPoly, 0 };
+    push(&heap, n);
 
     uint32* pred = pushArray<uint32>(arena, navMesh->polyCount);
     for (uint32 i = 0; i < navMesh->polyCount; i++) {
@@ -204,7 +206,8 @@ bool findPath(MemoryArena* arena, NavMesh* navMesh, const Vec3& start, const Vec
                 pred[neighboor] = curr.pos;
                 real32 distNEnd = length(polyCenters[endPoly] - polyCenters[neighboor]);
                 real32 stepDist = length(polyCenters[curr.pos] - polyCenters[neighboor]);
-                push(&heap, { curr.cost + stepDist, distNEnd, neighboor, curr.step + 1 });
+				Node n = { curr.cost + stepDist, distNEnd, neighboor, curr.step + 1 };
+                push(&heap, n);
             }
         }
     }

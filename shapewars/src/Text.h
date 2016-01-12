@@ -1,8 +1,16 @@
 #ifndef TEXTH
 #define TEXTH
 
+
+#ifdef _WIN32
+#include <windows.h>
+#include <GL/glew.h>
+#include <GL/gl.h>
+#else
 #include <GL/glew.h>
 #include <OpenGL/OpenGL.h>
+#endif
+
 #include <stb_truetype.h>
 
 #include "ShapeWars.h"

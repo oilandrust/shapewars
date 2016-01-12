@@ -35,7 +35,7 @@ struct Vec3 {
 
 inline Vec3 operator+(const Vec3& a, const Vec3& b)
 {
-    return Vec3{ a.x + b.x, a.y + b.y, a.z + b.z };
+    return Vec3(a.x + b.x, a.y + b.y, a.z + b.z);
 }
 
 inline Vec3& operator+=(Vec3& a, const Vec3& b)
@@ -48,7 +48,7 @@ inline Vec3& operator+=(Vec3& a, const Vec3& b)
 
 inline Vec3 operator-(const Vec3& a, const Vec3& b)
 {
-    return Vec3{ a.x - b.x, a.y - b.y, a.z - b.z };
+    return Vec3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
 inline Vec3& operator-=(Vec3& a, const Vec3& b)
@@ -61,12 +61,12 @@ inline Vec3& operator-=(Vec3& a, const Vec3& b)
 
 inline Vec3 operator-(const Vec3& a)
 {
-    return Vec3{ -a.x, -a.y, -a.z };
+    return Vec3(-a.x, -a.y, -a.z);
 }
 
 inline Vec3 operator*(const Vec3& a, const Vec3& b)
 {
-    return Vec3{ a.x * b.x, a.y * b.y, a.z * b.z };
+    return Vec3(a.x * b.x, a.y * b.y, a.z * b.z);
 }
 
 inline Vec3& operator*=(Vec3& a, const real32& b)
@@ -79,7 +79,7 @@ inline Vec3& operator*=(Vec3& a, const real32& b)
 
 inline Vec3 operator*(const Vec3& a, real32 l)
 {
-    return Vec3{ l * a.x, l * a.y, l * a.z };
+    return Vec3(l * a.x, l * a.y, l * a.z);
 }
 
 inline Vec3 operator*(const real32& f, const Vec3& v)

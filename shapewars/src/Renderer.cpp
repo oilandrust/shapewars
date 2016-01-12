@@ -27,7 +27,7 @@ void rendererBeginFrame(Renderer* renderer)
     glDepthRange(0.0f, 1.0f);
 
     glPointSize(4.0f);
-
+   
     glCullFace(GL_BACK);
     glEnable(GL_CULL_FACE);
 
@@ -37,8 +37,7 @@ void rendererBeginFrame(Renderer* renderer)
 
     glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
     glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
-    logOpenGLErrors();
-
+    
     glClear(GL_COLOR_BUFFER_BIT);
 
     renderer->currentShader = 0;
@@ -52,7 +51,7 @@ void reloadShaders(Renderer* renderer)
     if (renderer->texDiffShader.progId != 0) {
         glDeleteShader(renderer->texDiffShader.progId);
     }
-    createShaderProgram(&renderer->texDiffShader, "shaders/texture_diffuse.vs", "shaders/texture_diffuse.fs");
+    createShaderProgram(&renderer->texDiffShader, "shaders\\texture_diffuse.vs", "shaders\\texture_diffuse.fs");
     logOpenGLErrors();
 
     glBindAttribLocation(renderer->texDiffShader.progId, POS_ATTRIB_LOC, "position");
@@ -99,7 +98,7 @@ void reloadShaders(Renderer* renderer)
     renderer->flatDiffShader.diffuseLoc = glGetUniformLocation(renderer->flatDiffShader.progId, "entity_color");
 
     // 3d color flat shader
-    if (renderer->flatDiffShader.progId != 0) {
+    if (renderer->flatColorShader.progId != 0) {
         glDeleteShader(renderer->flatColorShader.progId);
     }
     createShaderProgram(&renderer->flatColorShader, "shaders/flat_color.vs", "shaders/flat_color.fs");
@@ -126,13 +125,13 @@ void reloadShaders(Renderer* renderer)
     glBindAttribLocation(renderer->groundShader.progId, POS_ATTRIB_LOC, "position");
     glBindAttribLocation(renderer->groundShader.progId, NORM_ATTRIB_LOC, "normal");
 
-    renderer->groundShader.projLoc = glGetUniformLocation(renderer->flatColorShader.progId, "projection");
-    renderer->groundShader.viewLoc = glGetUniformLocation(renderer->flatColorShader.progId, "view");
+    renderer->groundShader.projLoc = glGetUniformLocation(renderer->groundShader.progId, "projection");
+    renderer->groundShader.viewLoc = glGetUniformLocation(renderer->groundShader.progId, "view");
 
-    renderer->groundShader.posLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_position");
-    renderer->groundShader.sizeLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_size");
-    renderer->groundShader.rotLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_rotation");
-    renderer->groundShader.diffuseLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_color");
+    renderer->groundShader.posLoc = glGetUniformLocation(renderer->groundShader.progId, "entity_position");
+    renderer->groundShader.sizeLoc = glGetUniformLocation(renderer->groundShader.progId, "entity_size");
+    renderer->groundShader.rotLoc = glGetUniformLocation(renderer->groundShader.progId, "entity_rotation");
+    renderer->groundShader.diffuseLoc = glGetUniformLocation(renderer->groundShader.progId, "entity_color");
 
     // wall shader
     if (renderer->wallShader.progId != 0) {
@@ -144,13 +143,13 @@ void reloadShaders(Renderer* renderer)
     glBindAttribLocation(renderer->wallShader.progId, POS_ATTRIB_LOC, "position");
     glBindAttribLocation(renderer->wallShader.progId, NORM_ATTRIB_LOC, "normal");
 
-    renderer->wallShader.projLoc = glGetUniformLocation(renderer->flatColorShader.progId, "projection");
-    renderer->wallShader.viewLoc = glGetUniformLocation(renderer->flatColorShader.progId, "view");
+    renderer->wallShader.projLoc = glGetUniformLocation(renderer->wallShader.progId, "projection");
+    renderer->wallShader.viewLoc = glGetUniformLocation(renderer->wallShader.progId, "view");
 
-    renderer->wallShader.posLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_position");
-    renderer->wallShader.sizeLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_size");
-    renderer->wallShader.rotLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_rotation");
-    renderer->wallShader.diffuseLoc = glGetUniformLocation(renderer->flatColorShader.progId, "entity_color");
+    renderer->wallShader.posLoc = glGetUniformLocation(renderer->wallShader.progId, "entity_position");
+    renderer->wallShader.sizeLoc = glGetUniformLocation(renderer->wallShader.progId, "entity_size");
+    renderer->wallShader.rotLoc = glGetUniformLocation(renderer->wallShader.progId, "entity_rotation");
+    renderer->wallShader.diffuseLoc = glGetUniformLocation(renderer->wallShader.progId, "entity_color");
 }
 
 static void pushPiece(Renderer* renderer, Shader* shader, GLuint texId,
@@ -233,7 +232,7 @@ void pushIndexedArrayPiece(Renderer* renderer, Shader* shader,
 
 void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
 {
-
+	ASSERT(!glGetError());
     uint32 count = renderer->pieceCount;
     RenderPiece* renderPieces = renderer->renderQueue;
 
@@ -245,21 +244,19 @@ void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
         else {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
-
         // Bind shader and set global uniforms if required.
         Shader* shader = piece->shader;
         if (shader != renderer->currentShader) {
             glUseProgram(shader->progId);
-            renderer->currentShader = shader;
-            glUniformMatrix4fv(shader->viewLoc, 1, true, view.data);
-            glUniformMatrix4fv(shader->projLoc, 1, true, &projection.data[0]);
-        }
-
+			renderer->currentShader = shader;
+            glUniformMatrix4fv(shader->viewLoc, 1, true, &view.data[0]);
+			glUniformMatrix4fv(shader->projLoc, 1, true, &projection.data[0]);
+	    }
         // Set instance uniforms.
-        glUniformMatrix3fv(shader->rotLoc, 1, true, piece->rotation.data);
-        glUniform3f(shader->sizeLoc, piece->size.x, piece->size.y, piece->size.z);
-        glUniform3f(shader->posLoc, piece->position.x, piece->position.y, piece->position.z);
-
+		glUniformMatrix3fv(shader->rotLoc, 1, true, &piece->rotation.data[0]);
+		glUniform3f(shader->sizeLoc, piece->size.x, piece->size.y, piece->size.z);
+		glUniform3f(shader->posLoc, piece->position.x, piece->position.y, piece->position.z);
+		
         // Bind texture or color.
         if (piece->type == TRIMESH_TEXTURE) {
             glActiveTexture(GL_TEXTURE0);
@@ -269,7 +266,7 @@ void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
         else {
             glUniform3f(shader->diffuseLoc, piece->color.x, piece->color.y, piece->color.z);
         }
-
+		
         // Draw.
         glBindVertexArray(piece->vao);
         if (piece->type == ARRAY_POINTS) {
@@ -290,6 +287,7 @@ void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
         else {
             glDrawElements(GL_TRIANGLES, piece->iCount, GL_UNSIGNED_INT, 0);
         }
+		logOpenGLErrors();
     }
 
     renderer->pieceCount = 0;

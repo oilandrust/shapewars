@@ -37,7 +37,7 @@ struct Vec2i {
 
 inline Vec2 operator+(const Vec2& a, const Vec2& b)
 {
-    return Vec2{ a.x + b.x, a.y + b.y };
+    return Vec2(a.x + b.x, a.y + b.y);
 }
 
 inline Vec2& operator+=(Vec2& a, const Vec2& b)
@@ -49,7 +49,7 @@ inline Vec2& operator+=(Vec2& a, const Vec2& b)
 
 inline Vec2 operator-(const Vec2& a, const Vec2& b)
 {
-    return Vec2{ a.x - b.x, a.y - b.y };
+    return Vec2(a.x - b.x, a.y - b.y);
 }
 
 inline Vec2& operator-=(Vec2& a, const Vec2& b)
@@ -61,7 +61,7 @@ inline Vec2& operator-=(Vec2& a, const Vec2& b)
 
 inline Vec2 operator-(const Vec2& a)
 {
-    return Vec2{ -a.x, -a.y };
+    return Vec2(-a.x, -a.y);
 }
 
 inline Vec2& operator*=(Vec2& a, const real32& b)
@@ -73,7 +73,7 @@ inline Vec2& operator*=(Vec2& a, const real32& b)
 
 inline Vec2 operator*(const Vec2& a, real32 l)
 {
-    return Vec2{ l * a.x, l * a.y };
+    return Vec2(l * a.x, l * a.y);
 }
 
 inline Vec2 operator*(const real32& f, const Vec2& v)

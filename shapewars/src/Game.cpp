@@ -48,6 +48,7 @@ void initializeGame(Game* game)
 
     real32 aspect = (real32)game->screenSize.x / (real32)game->screenSize.y;
     real32 fovy = 40.f;
+	memset(viewCamera->projection.data, 0, 16*sizeof(real32));
     perspective(viewCamera->projection, fovy, aspect, 1.f, 200.f);
     viewCamera->focalDistance = 1.f / tanf(.5f * fovy * PI / 180.f);
     viewCamera->aspect = aspect;

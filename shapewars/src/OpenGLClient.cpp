@@ -193,6 +193,7 @@ GLuint createShader(GLenum shaderType, const char* filename)
 
     GLuint shader = 0;
     shaderFile = fopen(filename, "r");
+	ASSERT(shaderFile);
     if (shaderFile) {
         while (fscanf(shaderFile, "%c", &inChar) > 0) {
             shaderSource[i++] = inChar;
@@ -315,6 +316,7 @@ void _logOpenGLErrors(const char* file, int32 line)
         }
 
         printf("GL_%s at line %d of %s\n", error, line, file);
+		ASSERT(false);
         err = glGetError();
     }
 }

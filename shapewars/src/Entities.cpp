@@ -63,8 +63,8 @@ void initializeCameraPan(CameraPan* camera, const Vec2& levelBounds)
 
     camera->target = Vec3(0.5 * levelBounds.x, 0.3 * levelBounds.y, 0);
 
-    camera->velocity = { 0, 0 };
-    camera->accel = { 0, 0 };
+    camera->velocity = Vec3(0, 0, 0);
+    camera->accel = Vec3(0, 0, 0);
     camera->drag = 10.0f;
 
     // acceleration and drag in m/s;

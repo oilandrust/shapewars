@@ -9,11 +9,17 @@
 #include <SDL.h>
 #include <cmath>
 
+#ifdef _WIN32
+#include <windows.h>
+#include <GL/glew.h>
+#include <GL/gl.h>
+#else
 #include <GL/glew.h>
 #include <OpenGL/OpenGL.h>
+#endif
 
 struct Shader {
-    GLuint progId = 0;
+    GLuint progId;
 
     // uniforms
     GLint projLoc;

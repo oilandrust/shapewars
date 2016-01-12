@@ -7,6 +7,7 @@
 //
 
 #include "NavMeshGen.h"
+#include <algorithm>
 
 void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight)
 {
@@ -14,7 +15,7 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
     // 0 -> not walkable
     // 1 -> walkable
     uint8* rasterData = pushArray(&memory->temporaryArena, fieldHeight * fieldHeight, (uint8)0);
-    LevelRaster raster{ rasterData, fieldWidth, fieldHeight };
+	LevelRaster raster = { rasterData, fieldWidth, fieldHeight };
     
     for (uint32 j = 0; j < fieldHeight; j++) {
         uint32 jw = level->height * (real32)j / fieldHeight;
@@ -35,6 +36,7 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
 
     // Region Ids.
     RegionIdMap regionIds;
+	memset(&regionIds, 0, sizeof(regionIds));
     genRegions(&memory->temporaryArena, &distanceField, &regionIds);
 
     debug->idsTexId = debugRegionsCreateTexture(&memory->temporaryArena, &regionIds);
@@ -294,9 +296,100 @@ static void floodNew(real32* field, real32 level, int32* regionIds_t0, int32* re
     }
 };
 
+struct IdMap {
+    int32 neighboors[4];
+    int32 counts[4];
+    int32 ids;
+};
+
+static void increment(IdMap* map, int32 id) {
+    for (int32 i = 0; i < map->ids; i++) {
+        if (map->neighboors[i] == id) {
+            map->counts[i]++;
+            return;
+        }
+    }
+    map->neighboors[map->ids] = id;
+    map->counts[map->ids] = 1;
+    map->ids++;
+}
+
+static int32 maximum(IdMap* map) {
+    int32 maxI = -1;
+    int32 maxC = -1;
+    for (int32 i = 0; i < map->ids; i++) {
+        if (map->counts[i] > maxC) {
+            maxC = map->counts[i];
+            maxI = i;
+        }
+    }
+    return map->neighboors[maxI];
+}
+
+static int32 mostImportantNeighbor(int32* regionIds_t0, uint32 width, uint32 height, uint32 i, uint32 j) {
+    IdMap map;
+	memset(&map, 0, sizeof(IdMap));
+    // top
+    if (j + 1 < height)
+        increment(&map, regionIds_t0[i + (j + 1) * width]);
+    // right
+    if (i + 1 < width)
+        increment(&map, regionIds_t0[i + 1 + j * width]);
+    // bottom
+    if (j > 0)
+        increment(&map, regionIds_t0[i + (j - 1) * width]);
+    // left
+    if (i > 0)
+        increment(&map, regionIds_t0[i - 1 + j * width]);
+
+    return maximum(&map);
+};
+
+static void mergeIfIsolated(int32* regionIds_t0, uint32 width, uint32 height, uint32 i, uint32 j, int32 gid) {
+    if (j >= height || i >= width)
+        return;
+    if (regionIds_t0[i + j * width] != gid)
+        return;
+
+    int32 c = 0;
+    int32 id = regionIds_t0[i + j * width];
+    // top
+    if (j + 1 < height) {
+        uint32 n = i + (j + 1) * width;
+        if (regionIds_t0[n] == id)
+            c++;
+    }
+    // right
+    if (i + 1 < width) {
+        uint32 n = i + 1 + j * width;
+        if (regionIds_t0[n] == id)
+            c++;
+    }
+    // bottom
+    if (j - 1 < height) {
+        uint32 n = i + (j - 1) * width;
+        if (regionIds_t0[n] == id)
+            c++;
+    }
+    // left
+    if (i - 1 < width) {
+        uint32 n = i - 1 + j * width;
+        if (regionIds_t0[n] == id)
+            c++;
+    }
+
+    if (c < 2) {
+        regionIds_t0[i + j * width] = mostImportantNeighbor(regionIds_t0, width, height, i, j);
+        mergeIfIsolated(regionIds_t0, width, height, i, j + 1, gid);
+        mergeIfIsolated(regionIds_t0, width, height, i + 1, j, gid);
+        mergeIfIsolated(regionIds_t0, width, height, i, j - 1, gid);
+        mergeIfIsolated(regionIds_t0, width, height, i - 1, j, gid);
+    }
+};
+
+
 void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* regions)
 {
-
     uint32 width = distanceField->width;
     uint32 height = distanceField->height;
     size_t count = width * height;
@@ -375,100 +468,11 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
 
     regions->regionCount = nextId;
 
-    std::function<int32(uint32, uint32)> mostImportantNeighbor = [&](uint32 i, uint32 j) -> int32 {
-        struct IdMap {
-            int32 neighboors[4];
-            int32 counts[4];
-            int32 ids = 0;
-        };
-        const auto increment = [&](IdMap* map, int32 id) {
-            for (int32 i = 0; i < map->ids; i++) {
-                if (map->neighboors[i] == id) {
-                    map->counts[i]++;
-                    return;
-                }
-            }
-            map->neighboors[map->ids] = id;
-            map->counts[map->ids] = 1;
-            map->ids++;
-        };
-
-        IdMap map;
-        // top
-        if (j + 1 < height)
-            increment(&map, regionIds_t0[i + (j + 1) * width]);
-        // right
-        if (i + 1 < width)
-            increment(&map, regionIds_t0[i + 1 + j * width]);
-        // bottom
-        if (j > 0)
-            increment(&map, regionIds_t0[i + (j - 1) * width]);
-        // left
-        if (i > 0)
-            increment(&map, regionIds_t0[i - 1 + j * width]);
-
-        const auto maximum = [&](IdMap* map) {
-            int32 maxI = -1;
-            int32 maxC = -1;
-            for (int32 i = 0; i < map->ids; i++) {
-                if (map->counts[i] > maxC) {
-                    maxC = map->counts[i];
-                    maxI = i;
-                }
-            }
-            return map->neighboors[maxI];
-        };
-
-        return maximum(&map);
-    };
-
-    std::function<void(uint32, uint32, int32)> mergeIfIsolated = [&](uint32 i, uint32 j, int32 gid) {
-        if (j >= height || i >= width)
-            return;
-        if (regionIds_t0[i + j * width] != gid)
-            return;
-
-        int32 c = 0;
-        int32 id = regionIds_t0[i + j * width];
-        // top
-        if (j + 1 < height) {
-            uint32 n = i + (j + 1) * width;
-            if (regionIds_t0[n] == id)
-                c++;
-        }
-        // right
-        if (i + 1 < width) {
-            uint32 n = i + 1 + j * width;
-            if (regionIds_t0[n] == id)
-                c++;
-        }
-        // bottom
-        if (j - 1 < height) {
-            uint32 n = i + (j - 1) * width;
-            if (regionIds_t0[n] == id)
-                c++;
-        }
-        // left
-        if (i - 1 < width) {
-            uint32 n = i - 1 + j * width;
-            if (regionIds_t0[n] == id)
-                c++;
-        }
-
-        if (c < 2) {
-            regionIds_t0[i + j * width] = mostImportantNeighbor(i, j);
-            mergeIfIsolated(i, j + 1, gid);
-            mergeIfIsolated(i + 1, j, gid);
-            mergeIfIsolated(i, j - 1, gid);
-            mergeIfIsolated(i - 1, j, gid);
-        }
-    };
-
     // We don't want cells with only one neighboor of the same id.
     for (uint32 j = 0; j < height; j++) {
         for (uint32 i = 0; i < width; i++) {
             if (regionIds_t0[i + j * width] != -1) {
-                mergeIfIsolated(i, j, regionIds_t0[i + j * width]);
+                mergeIfIsolated(regionIds_t0, width, height, i, j, regionIds_t0[i + j * width]);
             }
         }
     }
@@ -504,12 +508,14 @@ GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap)
         for (uint32 i = 0; i < w; i++) {
             uint32 index = i + j * w;
             if (ids[index] != -1) {
-                uint32 cId = ids[index];
+                int32 cId = ids[index];
                 RGB col = colors[cId];
-                segmentsTexData[index] = { col.r, col.g, col.b, 255 };
+				RGBA color = { col.r, col.g, col.b, 255 };
+                segmentsTexData[index] = color;
             }
             else {
-                segmentsTexData[index] = { 0, 0, 0, 0 };
+				RGBA black = { 0, 0, 0, 0 };
+                segmentsTexData[index] = black;
             }
         }
     }
@@ -909,7 +915,7 @@ struct Edge {
 
 static Vec3 polygonCenter(Vec3* verts, uint32* poly, uint32 mvp)
 {
-    Vec3 p = { 0, 0, 0 };
+    Vec3 p(0, 0, 0);
     uint32 count = 0;
     while (count < mvp && poly[count] != NULL_INDEX) {
         p += verts[poly[count++]];

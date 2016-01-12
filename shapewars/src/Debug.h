@@ -17,40 +17,40 @@ struct TextRenderer;
 struct Input;
 
 struct Debug {
-    bool showDistanceField = false;
-    bool showRegions = false;
+    bool showDistanceField;
+    bool showRegions;
     real32 planeSize;
     GLuint distanceFieldTexId;
     GLuint idsTexId;
 
-    bool showContours = false;
+    bool showContours;
     uint32 contourCount;
     GLuint* contourVaos;
     uint32* contourICounts;
 
-    bool showTriRegions = false;
+    bool showTriRegions;
     uint32 contourMeshCount;
     GLuint* contourMeshes;
     uint32* contourMeshesIndices;
 
-    bool showNavMesh = false;
+    bool showNavMesh;
     uint32 navPolyCount;
     GLuint* polyVaos;
     uint32* polyICounts;
 
-    bool showDual = false;
+    bool showDual;
     GLuint dualVao;
     uint32 dualICount;
 
     Path* path;
     NavMesh* navMesh;
 
-    bool showPath = false;
+    bool showPath;
     GLuint pathVao;
     GLuint pathVbo;
     uint32 pathLength;
 
-    bool showText = true;
+    bool showText;
     real32 fps;
 };
 

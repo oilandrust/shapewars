@@ -13,6 +13,9 @@
 #include "Vec3.h"
 #include "debug.h"
 
+#include <cstdio>
+#include <stdio.h>
+
 void debugHandleInput(Debug* debug, Input* input)
 {
     if (input->keyStates[DEBUG_SHOW_DISTANCE_FIELD].clicked) {
@@ -123,7 +126,7 @@ void renderDebugText(Debug* debug, TextRenderer* tr)
 
     beginText(tr, 32.f, 0.f);
     char buff[128];
-    snprintf(buff, 128, "fps: %f", debug->fps);
+    sprintf(buff, "fps: %f", debug->fps);
     pushText(tr, buff);
     pushLine(tr, "Debug shortcuts:");
     pushLine(tr, "NavMesh:");
