@@ -27,6 +27,17 @@ ompiled Object files
 *.out
 *.app
 
+#vs
+*.opendb
+*.user
+*.sdf
+.vs/
+*.ilk
+*.log
+*.pdb
+*.idb
+*.tlog
+
 build/
 cmake/
 Sandbox/
