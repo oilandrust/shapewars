@@ -22,7 +22,7 @@ void main()
 	norm = entity_rotation * normal;
 	diffuse = entity_color;
 	vec3 pos = entity_size * position;
-	pos = pos + entity_position;
+	pos = entity_rotation * pos + entity_position;
 	gl_Position = projection * view * vec4(pos, 1);
 
 }
