@@ -18,8 +18,7 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
 	LevelRaster raster = { rasterData, fieldWidth, fieldHeight };
     
     for (uint32 j = 0; j < fieldHeight; j++) {
-        uint32 jw = level->height * (real32)j / fieldHeight;
-    
+        uint32 jw = level->height * (real32)j / fieldHeight;    
         for (uint32 i = 0; i < fieldWidth; i++) {
             uint32 iw = level->width * (real32)i / fieldWidth;
             if (level->tiles[iw + jw * level->width]) {
@@ -537,6 +536,13 @@ static int32 idAt(int32* ids, uint32 w, uint32 i, uint32 j)
     return ids[i + j * w];
 };
 
+enum Dir {
+	DIR_UP = 0,
+	DIR_RIGHT,
+	DIR_DOWN,
+	DIR_LEFT
+};
+
 static int32 idAtRight(int32* ids, uint32 w, uint32 h, uint32 i, uint32 j, Dir dir)
 {
     switch (dir) {
@@ -567,9 +573,116 @@ static bool isEdge(int32* ids, uint32 w, uint32 h, uint32 i, uint32 j, Dir dir)
     return false;
 };
 
+static void moveForward(Dir fDir, uint32& x, uint32& y) {
+	switch (fDir) {
+	case DIR_UP:
+		y--;
+		break;
+	case DIR_RIGHT:
+		x++;
+		break;
+	case DIR_DOWN:
+		y++;
+		break;
+	case DIR_LEFT:
+		x--;
+		break;
+	default:
+		break;
+	}
+}
+
+static Vec3 vertexAt(uint32 x, uint32 y, Dir fDir, uint32 h) {
+	Vec3 cellCenter = Vec3(x + 0.5, h - y - 0.5, 0.5);
+	Vec3 offset;
+	
+	switch (fDir) {
+	case DIR_UP:
+		offset = Vec3(.5f, -.5f, .0f);
+		break;
+	case DIR_RIGHT:
+		offset = Vec3(-.5f, -.5f, .0f);
+		break;
+	case DIR_DOWN:
+		offset = Vec3(-.5f, .5f, .0f);
+		break;
+	case DIR_LEFT:
+		offset = Vec3(.5f, .5f, .0f);
+		break;
+	}
+
+	return cellCenter + offset;
+}
+
+void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, uint32 h, uint32 i, uint32 j) 
+{
+	uint32 count = 0;
+	Vec3* verts = pushArray<Vec3>(arena, w * h);
+
+	// We visit in order from top-left to bottom so the direction must be DOWN for ccw order.
+	Dir fDir = DIR_DOWN;
+	Dir rDir = (Dir)((fDir + 1) % 4);
+
+	uint32 x = i;
+	uint32 y = j;
+	uint32 xb = i;
+	uint32 yb = j;
+
+	int32 idRight = idAtRight(ids, w, h, x, y, rDir);
+	do {
+		bool edgeForward = isEdge(ids, w, h, x, y, fDir);
+		bool edgeRight = isEdge(ids, w, h, x, y, rDir);
+		
+		// No wall in front, wall still on our right.
+		if (edgeRight && !edgeForward) {
+			moveForward(fDir, x, y);
+	
+			int32 newIdRight = idAtRight(ids, w, h, x, y, rDir);
+			bool edgeRight = isEdge(ids, w, h, x, y, rDir);
+
+			if (idRight != newIdRight && edgeRight) {
+				verts[count++] = vertexAt(x, y, fDir, h);
+			}
+			idRight = newIdRight;
+			continue;
+		}
+
+		// Wall in front and on the right.
+		if (edgeRight && edgeForward) {
+			// turn left
+			rDir = fDir;
+			fDir = fDir == 0 ? DIR_LEFT : (Dir)((fDir - 1) % 4);
+
+			verts[count++] = vertexAt(x, y, fDir, h);
+
+			idRight = idAtRight(ids, w, h, x, y, rDir);
+			continue;
+		}
+
+		// No wall on the right.
+		if (!edgeRight) {
+			// turn right.
+			fDir = rDir;
+			rDir = (Dir)((fDir + 1) % 4);
+			moveForward(fDir, x, y);
+
+			verts[count++] = vertexAt(x, y, fDir, h);
+
+			idRight = idAtRight(ids, w, h, x, y, rDir);
+			continue;
+		}
+		ASSERT(false);	
+	} while (x != xb || y != yb || fDir != DIR_DOWN);
+
+	// resize verts
+	popArray<Vec3>(arena, w * h - count);
+
+	contour->count = count;
+	contour->vertices = verts;
+}
+
 void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
 {
-
     uint32 w = regions->width;
     uint32 h = regions->height;
     int32* ids = regions->ids;
@@ -599,121 +712,8 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
             }
             visited[cellId] = 1;
 
-            uint32 count = 0;
-            Vec3* verts = pushArray<Vec3>(arena, w * h);
-
-            // We visit in order from top-left to bottom so the direction must be DOWN for ccw order.
-            Dir fDir = DIR_DOWN;
-            Dir rDir = (Dir)((fDir + 1) % 4);
-
-            uint32 x = i;
-            uint32 y = j;
-            uint32 xb = i;
-            uint32 yb = j;
-
-            do {
-                int32 idRight = idAtRight(ids, w, h, x, y, rDir);
-                bool endOfSegment = false;
-                bool edgeForward;
-                bool edgeRight;
-
-                // Go to the end of the segment.
-                do {
-                    switch (fDir) {
-                    case DIR_UP:
-                        y--;
-                        break;
-                    case DIR_RIGHT:
-                        x++;
-                        break;
-                    case DIR_DOWN:
-                        y++;
-                        break;
-                    case DIR_LEFT:
-                        x--;
-                        break;
-                    default:
-                        break;
-                    }
-                    int32 newIdRight = idAtRight(ids, w, h, x, y, rDir);
-                    edgeForward = isEdge(ids, w, h, x, y, fDir);
-                    edgeRight = isEdge(ids, w, h, x, y, rDir);
-
-                    endOfSegment = edgeForward || !edgeRight;
-
-                    if (edgeRight && newIdRight != idRight) {
-                        Vec3 cellCenter = Vec3(x + 0.5, h - y - 0.5, 0.5);
-                        // Add a vertex backwards.
-                        Vec3 offset;
-                        switch (fDir) {
-                        case DIR_UP:
-                            offset = Vec3(.5f, -.5f, .0f);
-                            break;
-                        case DIR_RIGHT:
-                            offset = Vec3(-.5f, -.5f, .0f);
-                            break;
-                        case DIR_DOWN:
-                            offset = Vec3(-.5f, .5f, .0f);
-                            break;
-                        case DIR_LEFT:
-                            offset = Vec3(.5f, .5f, .0f);
-                            break;
-                        }
-
-                        verts[count++] = cellCenter + offset;
-                        idRight = newIdRight;
-                    }
-                } while (!endOfSegment);
-
-                // Add a vertex.
-                if (edgeForward && edgeRight) {
-                    ASSERT(count < w * h);
-                    Vec3 cellCenter = Vec3(x + 0.5, h - y - 0.5, 0.5);
-                    Vec3 offset;
-                    // forwards.
-                    switch (fDir) {
-                    case DIR_UP:
-                        offset = Vec3(.5f, .5f, .0f);
-                        break;
-                    case DIR_RIGHT:
-                        offset = Vec3(.5f, -.5f, .0f);
-                        break;
-                    case DIR_DOWN:
-                        offset = Vec3(-.5f, -.5f, .0f);
-                        break;
-                    case DIR_LEFT:
-                        offset = Vec3(-.5f, .5f, .0f);
-                        break;
-                    }
-                    verts[count++] = cellCenter + offset;
-                }
-                // Turn
-                if (!edgeRight) {
-                    // turn right.
-                    fDir = rDir;
-                    rDir = (Dir)((fDir + 1) % 4);
-                }
-                else {
-                    // turn left.
-                    rDir = fDir;
-                    fDir = fDir == 0 ? DIR_LEFT : (Dir)((fDir - 1) % 4);
-                }
-            } while (x != xb || y != yb);
-
-            // If the start position is in a 1 cell wide limb, add a vertex.
-            // we can spot that if the end direction is not the same as the start direction
-            if (fDir != DIR_DOWN) {
-                ASSERT(fDir == DIR_LEFT);
-                Vec3 cellCenter = Vec3(x + 0.5, h - y - 0.5, 0.5);
-                verts[count++] = cellCenter + Vec3(-.5f, .5f, .0f);
-            }
-
-            // resize verts
-            popArray<Vec3>(arena, w * h - count);
-
             Contour* contour = &contours->contours[contours->count++];
-            contour->vertices = verts;
-            contour->count = count;
+			walkCountour(arena, contour, ids, w, h, i, j);
         }
     }
 }

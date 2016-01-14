@@ -181,8 +181,8 @@ int main()
 
     uint32 ScreenWidth = 640;
     uint32 ScreenHeight = 480;
-    bool fullScreen = true;
-    bool hd = true;
+    bool fullScreen = false;
+    bool hd = false;
 
     SDL_Window* window = createSDLGLWindow(ScreenWidth, ScreenHeight, hd, fullScreen);
     if (window == NULL) {

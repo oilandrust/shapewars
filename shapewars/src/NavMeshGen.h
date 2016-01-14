@@ -5,7 +5,6 @@
 #include "Debug.h"
 #include "Level.h"
 #include "NavMesh.h"
-#include "OpenGLClient.h"
 #include "ShapeWars.h"
 
 struct LevelRaster {
@@ -50,12 +49,7 @@ struct ContourSet {
     uint32 count;
 };
 
-enum Dir {
-    DIR_UP = 0,
-    DIR_RIGHT,
-    DIR_DOWN,
-    DIR_LEFT
-};
+void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, uint32 h, uint32 i, uint32 j);
 
 // FIXME: Keep ids in contours for rendering
 void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contour);
