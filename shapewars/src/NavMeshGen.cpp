@@ -6,10 +6,13 @@
 //
 //
 
+#define SMOOTH_DISTANCE_FIELD 0
+#define MERGE_SMALL_REGIONS 0
+
 #include "NavMeshGen.h"
 #include <algorithm>
 
-void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight)
+void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight, real32 radius)
 {
     // Create binary raster of the level at the requested resolution.
     // 0 -> not walkable
@@ -17,6 +20,9 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
     uint8* rasterData = pushArray(&memory->temporaryArena, fieldHeight * fieldHeight, (uint8)0);
 	LevelRaster raster = { rasterData, fieldWidth, fieldHeight };
     
+	real32 cellWidth = (real32)level->width / fieldWidth;
+	real32 cellHeight = (real32)level->height / fieldHeight;
+
     for (uint32 j = 0; j < fieldHeight; j++) {
         uint32 jw = level->height * (real32)j / fieldHeight;    
         for (uint32 i = 0; i < fieldWidth; i++) {
@@ -36,7 +42,11 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
     // Region Ids.
     RegionIdMap regionIds;
 	memset(&regionIds, 0, sizeof(regionIds));
-    genRegions(&memory->temporaryArena, &distanceField, &regionIds);
+	regionIds.cellWidth = cellWidth;
+	regionIds.cellHeight = cellHeight;
+
+	real32 fieldRadius = radius * (real32) fieldWidth / level->width;
+    genRegions(&memory->temporaryArena, &distanceField, &regionIds, fieldRadius);
 
     debug->idsTexId = debugRegionsCreateTexture(&memory->temporaryArena, &regionIds);
 
@@ -54,6 +64,7 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
         debug->contourICounts[i] = vCount;
     }
 
+	return;
     // Triangulated contours.
     Mesh3D* triangulatedCountours = pushArray<Mesh3D>(&memory->temporaryArena, contours.count);
     triangulateContours(&memory->temporaryArena, &contours, triangulatedCountours);
@@ -82,57 +93,109 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
     debug->dualICount = dual.indCount;
 }
 
+static inline int32 sep(uint32* g, uint32 w, int32 j, int32 i, int32 u) {
+	ASSERT(i < u);
+	int32 gu = g[u + j*w];
+	int32 gi = g[i + j*w];
+	return (u*u - i*i + gu*gu - gi*gi) / (2*(u-i));
+}
+
+static inline uint32 f(uint32* g, uint32 w, uint32 j, uint32 x, uint32 i) {
+	uint32 d = x > i? x - i: i - x;
+	uint32 gv = g[i+j*w];
+	return d*d + gv*gv;
+}
+
 void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* field)
 {
     field->width = level->width;
     field->height = level->height;
-
     uint8* levelMap = level->raster;
 
-    uint32 width = field->width;
-    uint32 height = field->height;
-    size_t count = width * height;
+    uint32 w = field->width;
+    uint32 h = field->height;
+    size_t count = w * h;
 
     real32* distanceField = pushArray<real32>(arena, count);
-
-    // Retrieve the position of the walls.
-    uint32 wallCount = 0;
-    for (uint32 j = 0; j < count; j++) {
-        if (levelMap[j])
-            wallCount++;
-    }
-    Vec2* walls = pushArray<Vec2>(arena, wallCount);
-    uint32 w = 0;
-    for (uint32 j = 0; j < height; j++) {
-        for (uint32 i = 0; i < width; i++) {
-            if (levelMap[i + j * width])
-                walls[w++] = Vec2(i, j);
-        }
-    }
+	uint32* g = pushArray<uint32>(arena, count);
 
     // Compute the distance field.
-    real32 maxDist = 0;
-    for (uint32 j = 0; j < height; j++) {
-        for (uint32 i = 0; i < width; i++) {
-            Vec2 pt(i, j);
-            real32 minDist = 10000000;
-            for (uint32 w = 0; w < wallCount; w++) {
-                real32 dist = length(pt - walls[w]);
-                if (dist < minDist) {
-                    minDist = dist;
-                }
-            }
-            distanceField[i + j * width] = -minDist;
-            if (minDist > maxDist) {
-                maxDist = minDist;
-            }
-        }
-    }
-    field->minVal = -maxDist;
+	// Algorithm from: http://fab.cba.mit.edu/classes/S62.12/docs/Meijster_distance.pdf
+	// First phase.
+	// For each column
+	for (uint32 i = 0; i < w; i++) {
+		// top to bottom.
+		if (levelMap[i] != 0) {
+			g[i] = 0;
+		}
+		else {
+			g[i] = w+h;
+		}
+		for (uint32 j = 1; j < h; j++) {
+			if (levelMap[i + j*w] != 0) {
+				g[i + j*w] = 0;
+			}
+			else {
+				g[i + j*w] = g[i+(j-1)*w] + 1;
+			}
+		}
 
-    real32* avgField = pushArray<real32>(arena, width * height);
+		// bottom to top.
+		for (int32 j = h - 2; j >= 0; j--) {
+			if (g[i+(j+1)*w] < g[i+j*w]) {
+				g[i + j*w] = g[i + (j + 1)*w] + 1;
+			}
+		}
+	}
 
-    // smooth
+	int32* s = pushArray<int32>(arena, w);
+	int32* t = pushArray<int32>(arena, w);
+	for (uint32 j = 0; j < h; j++) {
+		int32 q = 0;
+		s[0] = 0;
+		t[0] = 0;
+		for (uint32 u = 1; u < w; u++) {	
+			while (q >= 0 && f(g, w, j, t[q], s[q]) > f(g, w, j, t[q], u)) {
+				q--;
+			}
+			if (q < 0) {
+				q = 0;
+				s[0] = u;
+			}
+			else {
+				int32 ww = 1 + sep(g, w, j, s[q], u);
+				if (ww < w) {
+					q++;
+					s[q] = u;
+					t[q] = ww;
+				}
+			}
+		}
+
+		for (int32 u = w - 1; u >= 0; u--) {
+			uint32 sq = s[q];
+			distanceField[u + w*j] = -sqrt(f(g, w, j, u, sq));
+			if (u == t[q]) q--;
+		}
+	}
+	popArray<uint32>(arena, w);
+	popArray<uint32>(arena, w);
+	popArray<uint32>(arena, count);
+	
+	real32 minVal = 0;
+	for (uint32 i = 0; i < count; i++) {
+		if (distanceField[i] < minVal) {
+			minVal = distanceField[i];
+		}
+	}
+    
+    field->minVal = minVal;
+	field->field = distanceField;
+   
+#if SMOOTH_DISTANCE_FIELD
+	real32* avgField = pushArray<real32>(arena, width * height);
+
+	// smooth
     for (uint32 j = 0; j < height; j++) {
         for (uint32 i = 0; i < width; i++) {
             uint32 c = 1;
@@ -185,23 +248,22 @@ void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* fie
             avgField[i + j * width] = avg / c;
         }
     }
-    field->field = distanceField;
-
-    //    popArray<Vec2>(arena, wallCount);
+	field->field = avgField;
+#endif
 }
 
 GLuint debugDistanceFieldCreateTexture(MemoryArena* arena, DistanceField* field)
 {
     uint32 w = field->width;
     uint32 h = field->height;
-    real32 maxDist = -field->minVal;
+    real32 maxDist = field->minVal;
     real32* distanceField = field->field;
 
     uint8* distanceFieldTexData = pushArray<uint8>(arena, w * h);
 
     for (uint32 j = 0; j < h; j++) {
         for (uint32 i = 0; i < w; i++) {
-            distanceFieldTexData[i + j * w] = -255 * distanceField[i + j * w] / maxDist;
+            distanceFieldTexData[i + j * w] = 255 * distanceField[i + j * w] / maxDist;
         }
     }
     Texture tex;
@@ -387,7 +449,7 @@ static void mergeIfIsolated(int32* regionIds_t0, uint32 width, uint32 height, ui
 };
 
 
-void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* regions)
+void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* regions, real32 radius)
 {
     uint32 width = distanceField->width;
     uint32 height = distanceField->height;
@@ -398,8 +460,7 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
 
     regions->width = width;
     regions->height = height;
-    regions->ids = regionIds_t0;
-
+   
     real32 levelValue = distanceField->minVal;
     int32 nextId = 0;
 
@@ -418,7 +479,7 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
     uint32 levelIndex = 0;
     levelValue = sortedDistances[0];
 
-    while (levelValue < 0.f) {
+    while (levelValue < -radius) {
         for (uint32 j = 0; j < count; j++) {
             regionIds_t1[j] = -1;
         }
@@ -464,9 +525,11 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
     }
     // sorted distances.
     popArray<real32>(arena, count);
-
+	regions->ids = regionIds_t0;
     regions->regionCount = nextId;
 
+#if MERGE_SMALL_REGIONS
+	regionIds_t0 = regions->ids;
     // We don't want cells with only one neighboor of the same id.
     for (uint32 j = 0; j < height; j++) {
         for (uint32 i = 0; i < width; i++) {
@@ -475,6 +538,7 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
             }
         }
     }
+#endif
 
     regions->lastId = nextId;
 
@@ -483,7 +547,7 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
     // So we go through unwalkable regions, and if they have only one region as neighboor, split this region.
 
     // regionIds_t1
-    popArray<int32>(arena, count);
+    //popArray<int32>(arena, count);
 }
 
 GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap)
@@ -592,29 +656,29 @@ static void moveForward(Dir fDir, uint32& x, uint32& y) {
 	}
 }
 
-static Vec3 vertexAt(uint32 x, uint32 y, Dir fDir, uint32 h) {
-	Vec3 cellCenter = Vec3(x + 0.5, h - y - 0.5, 0.5);
+static Vec3 vertexAt(uint32 x, uint32 y, Dir fDir, real32 mw, real32 mh, real32 cw, real32 ch) {
+	Vec3 cellCenter = Vec3((x + .5f) * cw, mh - (y - .5f) * ch - ch, .5f);
 	Vec3 offset;
 	
 	switch (fDir) {
 	case DIR_UP:
-		offset = Vec3(.5f, -.5f, .0f);
+		offset = Vec3(.5f * cw, -.5f * ch, .0f);
 		break;
 	case DIR_RIGHT:
-		offset = Vec3(-.5f, -.5f, .0f);
+		offset = Vec3(-.5f * cw, -.5f * ch, .0f);
 		break;
 	case DIR_DOWN:
-		offset = Vec3(-.5f, .5f, .0f);
+		offset = Vec3(-.5f * cw, .5f * ch, .0f);
 		break;
 	case DIR_LEFT:
-		offset = Vec3(.5f, .5f, .0f);
+		offset = Vec3(.5f * cw, .5f * ch, .0f);
 		break;
 	}
 
 	return cellCenter + offset;
 }
 
-void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, uint32 h, uint32 i, uint32 j) 
+void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, uint32 h, real32 mw, real32 mh, real32 cw, real32 ch, uint32 i, uint32 j)
 {
 	uint32 count = 0;
 	Vec3* verts = pushArray<Vec3>(arena, w * h);
@@ -641,7 +705,7 @@ void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, ui
 			bool edgeRight = isEdge(ids, w, h, x, y, rDir);
 
 			if (idRight != newIdRight && edgeRight) {
-				verts[count++] = vertexAt(x, y, fDir, h);
+				verts[count++] = vertexAt(x, y, fDir, mw, mh, cw, ch);
 			}
 			idRight = newIdRight;
 			continue;
@@ -653,7 +717,7 @@ void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, ui
 			rDir = fDir;
 			fDir = fDir == 0 ? DIR_LEFT : (Dir)((fDir - 1) % 4);
 
-			verts[count++] = vertexAt(x, y, fDir, h);
+			verts[count++] = vertexAt(x, y, fDir, mw, mh, cw, ch);
 
 			idRight = idAtRight(ids, w, h, x, y, rDir);
 			continue;
@@ -666,7 +730,7 @@ void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, ui
 			rDir = (Dir)((fDir + 1) % 4);
 			moveForward(fDir, x, y);
 
-			verts[count++] = vertexAt(x, y, fDir, h);
+			verts[count++] = vertexAt(x, y, fDir, mw, mh, cw, ch);
 
 			idRight = idAtRight(ids, w, h, x, y, rDir);
 			continue;
@@ -695,6 +759,9 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
         visited[i] = false;
     }
 
+	real32 widthInMeters = regions->width * regions->cellWidth;
+	real32 heightInMeters = regions->height * regions->cellHeight;
+
     // Visit all cell to find beginings of contours, mark visited contour.
     for (uint32 j = 0; j < h; j++) {
         for (uint32 i = 0; i < w; i++) {
@@ -713,7 +780,7 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
             visited[cellId] = 1;
 
             Contour* contour = &contours->contours[contours->count++];
-			walkCountour(arena, contour, ids, w, h, i, j);
+			walkCountour(arena, contour, ids, w, h, widthInMeters, heightInMeters, regions->cellWidth, regions->cellHeight, i, j);
         }
     }
 }
@@ -733,7 +800,6 @@ static bool isCCWOrColinear(const Vec3& p0, const Vec3& p1, const Vec3& p2)
 
 void triangulateContours(MemoryArena* arena, ContourSet* contours, Mesh3D* meshes)
 {
-
     uint32 totalVCount = 0;
     uint32 totalFCount = 0;
     for (uint32 c = 0; c < contours->count; c++) {

@@ -1,7 +1,7 @@
 #include "Game.h"
 
-#include "Debug.h"
 #include "Input.h"
+#include "Debug.h"
 #include "Level.h"
 #include "OpenGLClient.h"
 #include "Renderer.h"

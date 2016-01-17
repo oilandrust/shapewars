@@ -12,7 +12,7 @@ void scase1(MemoryArena* arena) {
 						-1, -1, -1 };
 	Contour contour;
 
-	walkCountour(arena, &contour, ids, w, h, 1, 1);
+	walkCountour(arena, &contour, ids, w, h, 0,0,0,0, 1, 1);
 	ASSERT(contour.count == 4);
 	
 	resetArena(arena);
@@ -27,7 +27,7 @@ void scase2(MemoryArena* arena) {
 						 -1, -1, -1, -1 };
 	Contour contour;
 
-	walkCountour(arena, &contour, ids, w, h, 2, 1);
+	walkCountour(arena, &contour, ids, w, h,  0, 0, 0, 0, 2, 1);
 	ASSERT(contour.count == 6);
 
 	resetArena(arena);
@@ -41,7 +41,7 @@ void scase3(MemoryArena* arena) {
 						-1, -1, -1 };
 	Contour contour;
 
-	walkCountour(arena, &contour, ids, w, h, 2, 1);
+	walkCountour(arena, &contour, ids, w, h, 0, 0, 0, 0, 2, 1);
 	ASSERT(contour.count == 4);
 
 	resetArena(arena);
@@ -55,7 +55,7 @@ void scase4(MemoryArena* arena) {
 						-1, -1, -1, -1 };
 	Contour contour;
 
-	walkCountour(arena, &contour, ids, w, h, 1, 1);
+	walkCountour(arena, &contour, ids, w, h, 0, 0, 0, 0, 1, 1);
 	ASSERT(contour.count == 4);
 
 	resetArena(arena);
@@ -69,7 +69,7 @@ void case1(MemoryArena* arena) {
 						 1, 2, 1, 1, 2 };
 	Contour contour;
 
-	walkCountour(arena, &contour, ids, w, h, 1, 1);
+	walkCountour(arena, &contour, ids, w, h, 0, 0, 0, 0, 1, 1);
 	ASSERT(contour.count == 7);
 
 	resetArena(arena);
@@ -87,7 +87,7 @@ void case2(MemoryArena* arena) {
 
 	Contour contour;
 
-	walkCountour(arena, &contour, ids, w, h, 4, 1);
+	walkCountour(arena, &contour, ids, w, h, 0, 0, 0, 0, 4, 1);
 	ASSERT(contour.count == 17);
 
 	resetArena(arena);

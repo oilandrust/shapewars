@@ -21,7 +21,7 @@ struct DistanceField {
     real32 minVal;
 };
 
-void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight);
+void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navMesh, uint32 fieldWidth, uint32 fieldHeight, real32 radius);
 
 void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* field);
 
@@ -30,12 +30,14 @@ GLuint debugDistanceFieldCreateTexture(MemoryArena* arena, DistanceField* field)
 struct RegionIdMap {
     uint32 width;
     uint32 height;
+	real32 cellWidth;
+	real32 cellHeight;
     int32* ids;
     uint32 regionCount;
     int32 lastId;
 };
 
-void genRegions(MemoryArena* arena, DistanceField* distanceFiend, RegionIdMap* regions);
+void genRegions(MemoryArena* arena, DistanceField* distanceFiend, RegionIdMap* regions, real32 radius);
 
 GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap);
 
@@ -49,7 +51,7 @@ struct ContourSet {
     uint32 count;
 };
 
-void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, uint32 h, uint32 i, uint32 j);
+void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, uint32 h, real32 mw, real32 mh, real32 cw, real32 ch, uint32 i, uint32 j);
 
 // FIXME: Keep ids in contours for rendering
 void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contour);

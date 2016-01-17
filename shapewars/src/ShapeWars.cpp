@@ -31,8 +31,6 @@
     #define GetCurrentDir getcwd
 #endif
 
- 
-
 // TODO:
 // Fix full screen toggle
 // Memory alignment
@@ -212,7 +210,7 @@ int main()
 
     // Level
     Level level;
-    initalizeLevel(&memory.persistentArena, &level, level1, MAP_WIDTH, MAP_HEIGHT);
+    initalizeLevel(&memory.persistentArena, &level, level3, MAP_WIDTH, MAP_HEIGHT);
 
     GLuint landscapeVao;
     uint32 landscapeCount = 0;
@@ -232,7 +230,7 @@ int main()
     // Init the nav mesh.
     NavMesh navMesh;
 	memset(&navMesh, 0, sizeof(navMesh));
-    initializeNavMesh(&memory, &debug, &level, &navMesh, 1 * level.width, 1 * level.height);
+    initializeNavMesh(&memory, &debug, &level, &navMesh, 4 * level.width, 4 * level.height, 0.5);
     resetArena(&memory.temporaryArena);
     debug.navMesh = &navMesh;
     game.navMesh = &navMesh;

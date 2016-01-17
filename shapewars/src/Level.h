@@ -6,8 +6,14 @@
 #define MAP_WIDTH 32
 #define MAP_HEIGHT 32
 
+#define TEST_MAP_WIDTH 16
+#define TEST_MAP_HEIGHT 16
+
+
 extern uint8 level1[MAP_WIDTH * MAP_HEIGHT];
 extern uint8 level2[MAP_WIDTH * MAP_HEIGHT];
+extern uint8 level3[MAP_WIDTH * MAP_HEIGHT];
+extern uint8 testlevel[TEST_MAP_WIDTH * TEST_MAP_HEIGHT];
 
 struct Vec3;
 

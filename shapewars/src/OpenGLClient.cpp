@@ -316,7 +316,7 @@ void _logOpenGLErrors(const char* file, int32 line)
         }
 
         printf("GL_%s at line %d of %s\n", error, line, file);
-		ASSERT(false);
+		//ASSERT(false);
         err = glGetError();
     }
 }
