@@ -7,7 +7,7 @@
 //
 
 #define SMOOTH_DISTANCE_FIELD 1
-#define MERGE_SMALL_REGIONS 0
+#define MERGE_SMALL_REGIONS 1
 
 #include "NavMeshGen.h"
 #include <algorithm>
@@ -52,6 +52,7 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
 
     // Contours
     ContourSet contours;
+	memset(&contours, 0, sizeof(ContourSet));
     genContours(&memory->temporaryArena, &regionIds, &contours);
 
     debug->contourCount = contours.count;
@@ -317,11 +318,12 @@ static int32 maximum(IdMap* map) {
 	int32 maxI = -1;
 	int32 maxC = -1;
 	for (int32 i = 0; i < map->ids; i++) {
-		if (map->counts[i] > maxC) {
+		if (map->counts[i] >= maxC) {
 			maxC = map->counts[i];
 			maxI = i;
 		}
 	}
+	ASSERT(maxI >= 0);
 	return map->neighboors[maxI];
 }
 
@@ -482,23 +484,6 @@ static void mergeIfIsolated(int32* regionIds_t0, uint32 width, uint32 height, ui
     }
 };
 
-struct Cell {
-	uint32 i;
-	uint32 j;
-	real32 dist;
-};
-
-static int compCell(const Cell& c1, const Cell& c2) {
-	if (c1.dist < c2.dist) {
-		return 1;
-	} 
-	if (c1.dist > c2.dist) {
-		return -1;
-	}
-
-	return 0;
-}
-
 void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* regions, real32 radius)
 {
     uint32 width = distanceField->width;
@@ -585,9 +570,11 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
     // We don't want cells with only one neighboor of the same id.
     for (uint32 j = 0; j < height; j++) {
         for (uint32 i = 0; i < width; i++) {
-            if (regionIds_t0[i + j * width] != -1) {
-                mergeIfIsolated(regionIds_t0, width, height, i, j, regionIds_t0[i + j * width]);
+			int32 id = regionIds_t0[i + j*width];
+            if (id != -1) {
+                mergeIfIsolated(regionIds_t0, width, height, i, j, id);
             }
+			ASSERT(id == -1 || (id >= 0 && id < nextId));
         }
     }
 #endif
@@ -609,14 +596,6 @@ GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap)
     uint32 h = idMap->height;
     int32* ids = idMap->ids;
 
-    // Assign a random color to each id
-    RGB* colors = pushArray<RGB>(arena, idCount);
-    for (uint32 i = 0; i < idCount; i++) {
-        colors[i].r = (uint8)(255 * (real32)rand() / (real32)RAND_MAX);
-        colors[i].g = (uint8)(255 * (real32)rand() / (real32)RAND_MAX);
-        colors[i].b = (uint8)(255 * (real32)rand() / (real32)RAND_MAX);
-    }
-
     // Write a segment texture with id->color map.
     RGBA* segmentsTexData = pushArray<RGBA>(arena, w * h);
     for (uint32 j = 0; j < h; j++) {
@@ -624,7 +603,7 @@ GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap)
             uint32 index = i + j * w;
             if (ids[index] != -1) {
                 int32 cId = ids[index];
-                RGB col = colors[cId];
+                RGB col = randomColor(&g_debugDraw, cId);
 				RGBA color = { col.r, col.g, col.b, 255 };
                 segmentsTexData[index] = color;
             }
@@ -642,8 +621,7 @@ GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap)
     createTexture(&tex, GL_RGBA);
 
     popArray<RGBA>(arena, w * h);
-    popArray<RGB>(arena, idCount);
-
+   
     return tex.texId;
 }
 

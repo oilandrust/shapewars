@@ -28,15 +28,22 @@ struct DebugOption {
 
 #define MAX_DEBUG_OPTIONS 32
 
+#define RND_COLS 32
+
 struct DebugDraw {
 	GLuint vbo;
 	GLuint vao;
 	uint32 count;
+	RGB randomColors[RND_COLS];
 };
 
 extern DebugDraw g_debugDraw;
 
 void initializeDebugDraw(DebugDraw* dd);
+
+inline RGB randomColor(DebugDraw* dd, uint32 index) {
+	return dd->randomColors[index%RND_COLS];
+}
 
 void debugDrawLineStrip(DebugDraw* dd, Vec3* verts, uint32 count);
 

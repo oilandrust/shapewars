@@ -172,7 +172,7 @@ void initializePathFinding(Memory* memory, size_t memBegin, Debug* debug, Game* 
 	resetArena(&memory->persistentArena, memBegin);
 	
 	memset(navMesh, 0, sizeof(navMesh));
-	initializeNavMesh(memory, debug, level, navMesh, 1 * level->width, 1 * level->height, agentRadius);
+	initializeNavMesh(memory, debug, level, navMesh, 2 * level->width, 2 * level->height, agentRadius);
 	resetArena(&memory->temporaryArena);
 	
 	initializePath(&memory->persistentArena, &game->bot.path, navMesh->polyCount);
@@ -220,7 +220,7 @@ int main()
 
     // Level
     Level level;
-    initalizeLevel(&memory.persistentArena, &level, testlevel, TEST_MAP_WIDTH, TEST_MAP_HEIGHT);
+    initalizeLevel(&memory.persistentArena, &level, level3, MAP_WIDTH, MAP_HEIGHT);
 
     GLuint landscapeVao;
     uint32 landscapeCount = 0;
@@ -232,7 +232,7 @@ int main()
     game.screenSize = Vec2(ScreenWidth, ScreenHeight);
 
 
-	real32 agentRadius = 0.f;
+	real32 agentRadius = 0.3f;
 	real32 oldAgentRadius = agentRadius;
 
 	Debug* debug = &g_debug;

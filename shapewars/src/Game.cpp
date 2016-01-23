@@ -120,6 +120,7 @@ void renderGame(Game* game, Renderer* renderer)
 		}
 	}
     // Bot box
-    Vec3 botPos = game->bot.entity.position + Vec3(0.f, 0.f, .5f);
-    pushBoxPiece(renderer, &renderer->flatDiffShader, game->bot.entity.orientation, Vec3(0.5), botPos, boxColor);
+	real32 r = max(0.5, *g_debug.agentRadius);
+	Vec3 botPos = game->bot.entity.position + Vec3(0.f, 0.f, r);
+    pushBoxPiece(renderer, &renderer->flatDiffShader, game->bot.entity.orientation, Vec3(r), botPos, boxColor);
 }

@@ -23,6 +23,13 @@ void initializeDebugDraw(DebugDraw* dd)
 {
 	dd->vbo = createBufferObject((Vec3*)NULL, 128, GL_DYNAMIC_DRAW);
 	dd->vao = createVertexArray(dd->vbo);
+
+	RGB* colors = dd->randomColors;
+	for (uint32 i = 0; i < RND_COLS; i++) {
+		colors[i].r = (uint8)(255 * (real32)rand() / (real32)RAND_MAX);
+		colors[i].g = (uint8)(255 * (real32)rand() / (real32)RAND_MAX);
+		colors[i].b = (uint8)(255 * (real32)rand() / (real32)RAND_MAX);
+	}
 }
 
 void debugDrawLineStrip(DebugDraw* dd, Vec3* verts, uint32 count)
