@@ -123,11 +123,11 @@ void generateLandscape(MemoryArena* tempArena, real32 width, real32 height, GLui
     uint32 vCount = 0;
     uint32 iCount = 0;
 
-    real32 borderX = 0.5 * width;
-    real32 borderY = 0.5 * height;
+    real32 borderX = 0.5f * width;
+    real32 borderY = 0.5f* height;
 
-    real32 bMinSize = 1;
-    real32 bMaxSize = 6;
+    real32 bMinSize = 1.f;
+    real32 bMaxSize = 6.f;
 
     uint32 currenCount = 0;
     // Draw random boxes outside the level
@@ -166,6 +166,16 @@ void generateLandscape(MemoryArena* tempArena, real32 width, real32 height, GLui
     count = iCount;
 
     resetArena(tempArena);
+}
+
+void initializePathFinding(Memory* memory, size_t memBegin, Debug* debug, Game* game, Level* level, NavMesh* navMesh, real32 agentRadius) {
+	resetArena(&memory->persistentArena, memBegin);
+	
+	memset(navMesh, 0, sizeof(navMesh));
+	initializeNavMesh(memory, debug, level, navMesh, 1 * level->width, 1 * level->height, agentRadius);
+	resetArena(&memory->temporaryArena);
+	
+	initializePath(&memory->persistentArena, &game->bot.path, navMesh->polyCount);
 }
 
 int main()
@@ -210,39 +220,38 @@ int main()
 
     // Level
     Level level;
-    initalizeLevel(&memory.persistentArena, &level, level3, MAP_WIDTH, MAP_HEIGHT);
+    initalizeLevel(&memory.persistentArena, &level, testlevel, TEST_MAP_WIDTH, TEST_MAP_HEIGHT);
 
     GLuint landscapeVao;
     uint32 landscapeCount = 0;
-    generateLandscape(&memory.temporaryArena, MAP_WIDTH, MAP_HEIGHT, landscapeVao, landscapeCount);
+    generateLandscape(&memory.temporaryArena, (real32)level.width, (real32)level.height, landscapeVao, landscapeCount);
 
     Game game;
     game.tempArena = &memory.temporaryArena;
     game.level = &level;
     game.screenSize = Vec2(ScreenWidth, ScreenHeight);
 
-    Debug debug;
-	memset(&debug, 0, sizeof(Debug));
-    debug.planeSize = level.width;
-	debug.showText = true;
-    game.debug = &debug;
+	Debug* debug = &g_debug;
+ 	memset(&g_debug, 0, sizeof(Debug));
+	debug->planeSize = (real32)level.width;
+	debug->font = &textRenderer.defaultFont;
+    game.debug = debug;
+	initalizeDebug(debug);
 
-    // Init the nav mesh.
+	DebugDraw* debugDraw = &g_debugDraw;
+	initializeDebugDraw(debugDraw);
+
     NavMesh navMesh;
-	memset(&navMesh, 0, sizeof(navMesh));
-    initializeNavMesh(&memory, &debug, &level, &navMesh, 4 * level.width, 4 * level.height, 0.5);
-    resetArena(&memory.temporaryArena);
-    debug.navMesh = &navMesh;
-    game.navMesh = &navMesh;
+	debug->navMesh = &navMesh;
+	game.navMesh = &navMesh;
+	initializeGame(&game);
 
-    initializeGame(&game);
+	real32 agentRadius = 0.f;
+	size_t navMemBegin = memory.persistentArena.used;
 
-    initializePath(&memory.persistentArena, &game.bot.path, navMesh.polyCount);
-    debug.path = &game.bot.path;
-    debug.pathVbo = createBufferObject(game.bot.path.points, navMesh.polyCount + 2, GL_DYNAMIC_DRAW);
-    debug.pathVao = createVertexArray(debug.pathVbo);
+	initializePathFinding(&memory, navMemBegin, debug, &game, &level, &navMesh, agentRadius);
 
-    Input input;
+	Input input;
     memset(&input, 0, sizeof(input));
 
     // Timers
@@ -260,7 +269,7 @@ int main()
 
         // Time delta in seconds
         real32 dt = targetMsPerFrame / 1000.0f;
-        debug.fps = fps;
+        debug->fps = fps;
 
         // Update the input state
         processInput(&input);
@@ -287,22 +296,32 @@ int main()
 				fullScreen = true;
            }
 		}
+		// Change agent radius.
+		/*
+		if (input.keyStates[DEBUG_INC_RADIUS].clicked) {
+			agentRadius += 0.1f;
+			initializePathFinding(&memory, navMemBegin, &debug, &game, &level, &navMesh, agentRadius);
+		}
+		if (input.keyStates[DEBUG_DEC_RADIUS].clicked) {
+			agentRadius -= 0.1f;
+			initializePathFinding(&memory, navMemBegin, &debug, &game, &level, &navMesh, agentRadius);
+		}
+		*/
 
         // Update
         handleInputAndUpdateGame(&game, &input, dt);
-        debugHandleInput(&debug, &input);
+        debugHandleInput(debug, &input);
 
         Mat3 rot;
         identity(rot);
         pushPlanePiece(&renderer, &renderer.flatDiffShader, rot,
-            Vec3(2.5f * level.width, 2.5f * level.height, 1), Vec3(0.5f * level.width, 0.5f * level.height, -.1), Vec3(0.6));
-        pushMeshPiece(&renderer, &renderer.flatDiffShader, landscapeVao, landscapeCount, rot, Vec3(1), Vec3(0), Vec3(0.7));
+            Vec3(2.5f * level.width, 2.5f * level.height, 1.f), Vec3(0.5f * level.width, 0.5f * level.height, -.1f), Vec3(0.6f));
+        pushMeshPiece(&renderer, &renderer.flatDiffShader, landscapeVao, landscapeCount, rot, Vec3(1.f), Vec3(0.f), Vec3(0.7f));
 
         // Draw
         renderGame(&game, &renderer);
 
-        renderDebug(&debug, &renderer);
-        renderDebugText(&debug, &textRenderer);
+        renderDebug(debug, &renderer, &textRenderer);
 
         // Set the view Matrix
         Mat4 view = game.viewCamera.view;
@@ -322,7 +341,7 @@ int main()
 
         // TODO COMPRESS THIS
         if (msElapsed < targetMsPerFrame) {
-            SDL_Delay((uint32)targetMsPerFrame - msElapsed);
+            SDL_Delay((uint32)targetMsPerFrame - (uint32)msElapsed);
             lastCounter = endCounter;
             endCounter = SDL_GetPerformanceCounter();
             couterElapsed = endCounter - lastCounter;

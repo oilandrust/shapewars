@@ -25,6 +25,8 @@ struct Font {
     int32 size;
 };
 
+Vec2 textSize(Font* font, const char* text);
+
 struct TextRenderer {
     Font defaultFont;
     Shader* shader;
@@ -37,21 +39,23 @@ struct TextRenderer {
 
     Vec2* quads;
     Vec2* uvs;
+	Vec3* colors;
     uint32 quadCount;
     GLuint vao;
 
     // dynamic vertex buffers.
     GLuint qVbo;
     GLuint uvVbo;
+	GLuint colorVbo;
 };
 
 void beginText(TextRenderer* textRenderer, real32 x, real32 y);
 
 void initalizeTextRenderer(Memory* memory, TextRenderer* textRenderer);
 
-void pushText(TextRenderer* textRenderer, const int8* text);
+void pushText(TextRenderer* textRenderer, const int8* text, const Vec2& position, const Vec3& color = Vec3(1.f, 1.f, 1.f));
 
-void pushLine(TextRenderer* textRenderer, const int8* text);
+void pushLine(TextRenderer* textRenderer, const int8* text, const Vec3& color = Vec3(1.f, 1.f, 1.f));
 
 void renderText(TextRenderer* textRenderer);
 

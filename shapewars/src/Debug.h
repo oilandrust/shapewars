@@ -14,9 +14,35 @@
 
 struct Renderer;
 struct TextRenderer;
+struct Font;
 struct Input;
 
+struct DebugOption {
+	const char* text;
+	Rect2 bbox;
+	bool* active;
+	bool hovered;
+};
+
+#define MAX_DEBUG_OPTIONS 32
+
+struct DebugDraw {
+	GLuint vbo;
+	GLuint vao;
+	uint32 count;
+};
+
+extern DebugDraw g_debugDraw;
+
+void initializeDebugDraw(DebugDraw* dd);
+
+void debugDrawLineStrip(DebugDraw* dd, Vec3* verts, uint32 count);
+
 struct Debug {
+	Font* font;
+	DebugOption options[MAX_DEBUG_OPTIONS];
+	uint32 optionCount;
+
     bool showDistanceField;
     bool showRegions;
     real32 planeSize;
@@ -42,22 +68,20 @@ struct Debug {
     GLuint dualVao;
     uint32 dualICount;
 
-    Path* path;
     NavMesh* navMesh;
 
     bool showPath;
-    GLuint pathVao;
-    GLuint pathVbo;
-    uint32 pathLength;
 
     bool showText;
     real32 fps;
 };
 
+extern Debug g_debug;
+
+void initalizeDebug(Debug* debug);
+
 void debugHandleInput(Debug* debug, Input* input);
 
-void renderDebug(Debug* debug, Renderer* renderer);
-
-void renderDebugText(Debug* debug, TextRenderer* tr);
+void renderDebug(Debug* debug, Renderer* renderer, TextRenderer* tr);
 
 #endif /* Debug_h */

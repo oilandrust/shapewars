@@ -85,30 +85,10 @@ void processInput(Input* input)
             else if (event.key.keysym.sym == SDLK_s) {
                 processKeyEvent(input, &event, DEBUG_TOGGLE_FULLSCREEN);
             }
-            else if (event.key.keysym.sym == SDLK_f) {
-                processKeyEvent(input, &event, DEBUG_SHOW_DISTANCE_FIELD);
-            }
-            else if (event.key.keysym.sym == SDLK_i) {
-                processKeyEvent(input, &event, DEBUG_SHOW_REGIONS);
-            }
-            else if (event.key.keysym.sym == SDLK_c) {
-                processKeyEvent(input, &event, DEBUG_SHOW_CONTOURS);
-            }
-            else if (event.key.keysym.sym == SDLK_t) {
-                processKeyEvent(input, &event, DEBUG_SHOW_TRI_REGIONS);
-            }
-            else if (event.key.keysym.sym == SDLK_n) {
-                processKeyEvent(input, &event, DEBUG_SHOW_POLY_REGIONS);
-            }
-            else if (event.key.keysym.sym == SDLK_d) {
-                processKeyEvent(input, &event, DEBUG_SHOW_DUAL_MESH);
-            }
-            else if (event.key.keysym.sym == SDLK_p) {
-                processKeyEvent(input, &event, DEBUG_SHOW_PATH);
-            }
             else if (event.key.keysym.sym == SDLK_h) {
                 processKeyEvent(input, &event, DEBUG_SHOW_MENU);
-            }
+			}
+
         }
     }
 }

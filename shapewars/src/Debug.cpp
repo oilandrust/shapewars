@@ -16,45 +16,83 @@
 #include <cstdio>
 #include <stdio.h>
 
+Debug g_debug;
+DebugDraw g_debugDraw;
+
+void initializeDebugDraw(DebugDraw* dd) 
+{
+	dd->vbo = createBufferObject((Vec3*)NULL, 128, GL_DYNAMIC_DRAW);
+	dd->vao = createVertexArray(dd->vbo);
+}
+
+void debugDrawLineStrip(DebugDraw* dd, Vec3* verts, uint32 count)
+{
+	updateBufferObject(dd->vbo, verts, count);
+	dd->count = count;
+}
+
+static void defineOption(Font* font, DebugOption* options, uint32& count, Vec2& pos, const char* text, bool* debugVar)
+{
+	DebugOption* option = options + count;
+	option->active = debugVar;
+	option->text = text;
+	Vec2 size = textSize(font, text);
+	option->bbox = { pos - Vec2(0.f, size.y), pos + Vec2(size.x, 0.f) };
+	pos.y += font->size;
+	count++;
+}
+
+void initalizeDebug(Debug* debug) 
+{
+	DebugOption* options = debug->options;
+	memset(options, 0, MAX_DEBUG_OPTIONS);
+	uint32 count = 0;
+	Font* font = debug->font;
+
+	debug->showText = false;
+
+	Vec2 pos((real32)font->size);
+	defineOption(font, options, count, pos, "NavMesh:", NULL);
+	defineOption(font, options, count, pos, "    Show distance field.", &debug->showDistanceField);
+	defineOption(font, options, count, pos, "    Show regions.", &debug->showRegions);
+	defineOption(font, options, count, pos, "    Show region contours.", &debug->showContours);
+	defineOption(font, options, count, pos, "    Show triangulated contours.", &debug->showTriRegions);
+	defineOption(font, options, count, pos, "    Show polygon navmesh.", &debug->showNavMesh);
+	defineOption(font, options, count, pos, "    Show navmesh dual (connectivity).", &debug->showDual);
+	defineOption(font, options, count, pos, "Path finding:", NULL);
+	defineOption(font, options, count, pos, "    Show path, also shows path polygons if navmesh active.", &debug->showPath);
+	defineOption(font, options, count, pos, "Misc:", NULL);
+	defineOption(font, options, count, pos, "    (h): Hide/show debug menu.", &debug->showText);
+	defineOption(font, options, count, pos, "    (r): Reload all shaders.", NULL);
+	defineOption(font, options, count, pos, "    (s) : toggle full - screen.", NULL);
+
+	debug->optionCount = count;
+}
+
 void debugHandleInput(Debug* debug, Input* input)
 {
-    if (input->keyStates[DEBUG_SHOW_DISTANCE_FIELD].clicked) {
-        debug->showDistanceField = !debug->showDistanceField;
-        if (debug->showDistanceField)
-            debug->showRegions = false;
-    }
-    if (input->keyStates[DEBUG_SHOW_REGIONS].clicked) {
-        debug->showRegions = !debug->showRegions;
-        if (debug->showRegions)
-            debug->showDistanceField = false;
-    }
-    if (input->keyStates[DEBUG_SHOW_CONTOURS].clicked) {
-        debug->showContours = !debug->showContours;
-        if (debug->showContours)
-            debug->showTriRegions = false;
-    }
-    if (input->keyStates[DEBUG_SHOW_TRI_REGIONS].clicked) {
-        debug->showTriRegions = !debug->showTriRegions;
-        if (debug->showTriRegions)
-            debug->showContours = false;
-    }
-    if (input->keyStates[DEBUG_SHOW_POLY_REGIONS].clicked) {
-        debug->showNavMesh = !debug->showNavMesh;
-        if (debug->showNavMesh)
-            debug->showContours = false;
-    }
-    if (input->keyStates[DEBUG_SHOW_DUAL_MESH].clicked) {
-        debug->showDual = !debug->showDual;
-    }
-    if (input->keyStates[DEBUG_SHOW_PATH].clicked) {
-        debug->showPath = !debug->showPath;
-    }
     if (input->keyStates[DEBUG_SHOW_MENU].clicked) {
         debug->showText = !debug->showText;
     }
+
+	uint32 count = debug->optionCount;
+	DebugOption* options = debug->options;
+	Vec2 mousePos(input->mouseX, input->mouseY);
+	for (uint32 i = 0; i < count; i++) {
+		DebugOption* opt = options + i;
+		if (insideRect(opt->bbox, mousePos)) {
+			opt->hovered = true;
+			if (opt->active && input->keyStates[MOUSE_LEFT].clicked) {
+				*opt->active = !(*opt->active);
+			}
+		}
+		else {
+			opt->hovered = false;
+		}
+	}
 }
 
-void renderDebug(Debug* debug, Renderer* renderer)
+void renderDebug(Debug* debug, Renderer* renderer, TextRenderer* tr)
 {
     Mat3 identity3;
     identity(identity3);
@@ -103,43 +141,29 @@ void renderDebug(Debug* debug, Renderer* renderer)
             identity3, Vec3(1.0f), Vec3(.0f), Vec3(1, 0, 0));
     }
 
-    if (debug->showNavMesh && debug->showPath) {
-        for (uint32 p = 0; p < debug->path->polyPathLength; p++) {
-            uint32 iCount = polyVertCount(debug->navMesh, debug->path->polys[p]);
-            pushIndexedArrayPiece(renderer, &renderer->flatColorShader, debug->polyVaos[debug->path->polys[p]], iCount, INDEXED_ARRAY_LINE_LOOP,
-                identity3, Vec3(1.0f), Vec3(.0f), Vec3(1, 0, 0));
-        }
-    }
+	if (debug->showPath) {
+		pushArrayPiece(renderer, &renderer->flatColorShader, g_debugDraw.vao, g_debugDraw.count, ARRAY_LINE_STRIP, Vec3(1.f));
+	}
 
-    if (debug->showPath) {
-        pushArrayPiece(renderer, &renderer->flatColorShader,
-            debug->pathVao, debug->pathLength, ARRAY_LINE_STRIP,
-            identity3, Vec3(1.f), Vec3(0.f), Vec3(1.f));
-    }
-}
+	if (!debug->showText) {
+		return;
+	}
 
-void renderDebugText(Debug* debug, TextRenderer* tr)
-{
-    if (!debug->showText) {
-        return;
-    }
+	Vec3 colActive = Vec3(1.f);
+	Vec3 colInactive = Vec3(.7f);
+	Vec3 colHovered = Vec3(1.f, 1.f, 0.f);
 
-    beginText(tr, 32.f, 0.f);
-    char buff[128];
-    sprintf(buff, "fps: %f", debug->fps);
-    pushText(tr, buff);
-    pushLine(tr, "Debug shortcuts:");
-    pushLine(tr, "NavMesh:");
-    pushLine(tr, "    - (f): Show distance field.");
-    pushLine(tr, "    - (i): Show regions.");
-    pushLine(tr, "    - (c): Show region contours.");
-    pushLine(tr, "    - (t): Show triangulated contours.");
-    pushLine(tr, "    - (n): Show polygon navmesh.");
-    pushLine(tr, "    - (d): Show navmesh dual (connectivity).");
-    pushLine(tr, "Path finding:");
-    pushLine(tr, "    - (p): Show path, also shows path polygons if navmesh active.");
-    pushLine(tr, "Misc:");
-    pushLine(tr, "    - (h): Hide/show debug menu.");
-    pushLine(tr, "    - (r): Reload all shaders.");
-    pushLine(tr, "    - (s): toggle full-screen.");
+	beginText(tr, 32.f, 0.f);
+	uint32 count = debug->optionCount;
+	DebugOption* options = debug->options;
+	for (uint32 i = 0; i < count; i++) {
+		DebugOption* opt = options + i;
+		Vec3 col = colActive;
+		if(opt->active != NULL) {
+			col = opt->hovered ? colHovered
+				: (*opt->active ? colActive : colInactive);
+		}
+		
+		pushText(tr, opt->text, Vec2(opt->bbox.min.x, opt->bbox.max.y), col);
+	}
 }

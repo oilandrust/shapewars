@@ -109,12 +109,12 @@ inline Vec3 normalize(const Vec3& v)
     return Vec3(v.x * linv, v.y * linv, v.z * linv);
 }
 
-inline Vec3 max(const Vec3& v1, const Vec3& v2)
+inline Vec3 max3(const Vec3& v1, const Vec3& v2)
 {
     return Vec3(max(v1.x, v2.x), max(v1.y, v2.y), max(v1.z, v2.z));
 }
 
-inline Vec3 min(const Vec3& v1, const Vec3& v2)
+inline Vec3 min3(const Vec3& v1, const Vec3& v2)
 {
     return Vec3(min(v1.x, v2.x), min(v1.y, v2.y), min(v1.z, v2.z));
 }

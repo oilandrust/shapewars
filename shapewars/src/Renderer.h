@@ -88,6 +88,9 @@ void pushArrayPiece(Renderer* renderer, Shader* shader,
     GLuint vao, uint32 count, RenderPieceType type,
     const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color);
 
+void pushArrayPiece(Renderer* renderer, Shader* shader,
+	GLuint vao, uint32 count, RenderPieceType type, const Vec3& color);
+
 void pushIndexedArrayPiece(Renderer* renderer, Shader* shader,
     GLuint vao, uint32 count, RenderPieceType type,
     const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color);

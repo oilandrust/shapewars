@@ -13,6 +13,18 @@ struct Vec2 {
     {
     }
 
+	Vec2(int32 x_, int32 y_)
+		: x((real32)x_)
+		, y((real32)y_)
+	{
+	}
+
+	Vec2(uint32 x_, uint32 y_)
+		: x((real32)x_)
+		, y((real32)y_)
+	{
+	}
+
     Vec2(real32 x_)
         : x(x_)
         , y(x_)
@@ -35,9 +47,19 @@ struct Vec2i {
     Vec2i() {}
 };
 
+struct Rect2 {
+	Vec2 min;
+	Vec2 max;
+};
+
 inline Vec2 operator+(const Vec2& a, const Vec2& b)
 {
     return Vec2(a.x + b.x, a.y + b.y);
+}
+
+inline Vec2 operator*(const Vec2& a, const Vec2& b)
+{
+	return Vec2(a.x * b.x, a.y * b.y);
 }
 
 inline Vec2& operator+=(Vec2& a, const Vec2& b)
@@ -106,6 +128,11 @@ inline Vec2 max(const Vec2& v1, const Vec2& v2)
 inline Vec2 min(const Vec2& v1, const Vec2& v2)
 {
     return Vec2(min(v1.x, v2.x), min(v1.y, v2.y));
+}
+
+inline bool insideRect(const Rect2& rect, const Vec2& pt)
+{
+	return rect.min.x <= pt.x && pt.x <= rect.max.x && rect.min.y <= pt.y && pt.y <= rect.max.y;
 }
 
 #endif

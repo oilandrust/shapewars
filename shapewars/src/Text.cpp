@@ -11,7 +11,7 @@ void initalizeTextRenderer(Memory* memory, TextRenderer* tr)
 {
     /* Load the font and create the texture atlas. */
     Font* font = &tr->defaultFont;
-    font->size = 40;
+    font->size = 20;
 
     FILE* fontFile = fopen("data/OpenSans-Regular.ttf", "rb");
     ASSERT(fontFile);
@@ -37,10 +37,12 @@ void initalizeTextRenderer(Memory* memory, TextRenderer* tr)
     /* Allocate the quad buffer. */
     tr->quads = pushArray<Vec2>(&memory->persistentArena, 6 * MAX_CHARS);
     tr->uvs = pushArray<Vec2>(&memory->persistentArena, 6 * MAX_CHARS);
-    tr->quadCount = 0;
+	tr->colors = pushArray<Vec3>(&memory->persistentArena, 6 * MAX_CHARS);
+	tr->quadCount = 0;
 
     tr->qVbo = createBufferObject(tr->quads, 6 * MAX_CHARS, GL_DYNAMIC_DRAW);
     tr->uvVbo = createBufferObject(tr->uvs, 6 * MAX_CHARS, GL_DYNAMIC_DRAW);
+	tr->colorVbo = createBufferObject(tr->colors, 6 * MAX_CHARS, GL_DYNAMIC_DRAW);
 
     // Create the vao
     GLuint vao;
@@ -49,6 +51,7 @@ void initalizeTextRenderer(Memory* memory, TextRenderer* tr)
 
     bindAttribBuffer(tr->qVbo, POS_ATTRIB_LOC, 2);
     bindAttribBuffer(tr->uvVbo, UV_ATTRIB_LOC, 2);
+	bindAttribBuffer(tr->colorVbo, COL_ATTRIB_LOC, 3);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -64,12 +67,38 @@ void beginText(TextRenderer* tr, real32 x, real32 y)
     tr->alignX = x;
 }
 
-void pushText(TextRenderer* tr, const int8* text)
+Vec2 textSize(Font* font, const char* text) 
+{
+	real32 x = 0.f;
+	real32 y = 0.f;
+	real32 yMax = (real32)font->size;
+
+	while (*text) {
+		if (*text == '\n') {
+			x = .0f;
+			y += font->size;
+		}
+		else {
+			stbtt_aligned_quad q;
+			stbtt_GetBakedQuad(font->glyphs, FONT_ATLAS_SIZE, FONT_ATLAS_SIZE,
+				*text - 32, &x, &y, &q, 1);
+		}
+		text++;
+	}
+
+	return Vec2(x, yMax);
+}
+
+void pushText(TextRenderer* tr, const int8* text, const Vec2& position, const Vec3& color)
 {
     Font* font = &tr->defaultFont;
     Vec2* quads = tr->quads;
     Vec2* uvs = tr->uvs;
-    uint32 count = tr->quadCount;
+	Vec3* colors = tr->colors;
+	uint32 count = tr->quadCount;
+
+	tr->offsetX = position.x;
+	tr->offsetY = position.y;
 
     while (*text) {
         if (*text == '\n') {
@@ -100,6 +129,13 @@ void pushText(TextRenderer* tr, const int8* text)
             uvs[qBegin + 5] = Vec2(q.s1, q.t1);
             quads[qBegin + 5] = Vec2(q.x1, q.y1);
 
+			colors[qBegin] = color;
+			colors[qBegin+1] = color;
+			colors[qBegin+2] = color;
+			colors[qBegin+3] = color;
+			colors[qBegin+4] = color;
+			colors[qBegin+5] = color;
+
             count++;
         }
         text++;
@@ -108,12 +144,12 @@ void pushText(TextRenderer* tr, const int8* text)
     tr->quadCount = count;
 }
 
-void pushLine(TextRenderer* tr, const int8* text)
+void pushLine(TextRenderer* tr, const int8* text, const Vec3& color)
 {
     tr->offsetY += tr->defaultFont.size;
     tr->offsetX = tr->alignX;
 
-    pushText(tr, text);
+	pushText(tr, text, { tr->offsetX, tr->offsetY }, color);
 }
 
 void renderText(TextRenderer* tr)
@@ -123,6 +159,7 @@ void renderText(TextRenderer* tr)
 
     updateBufferObject(tr->qVbo, tr->quads, 6 * tr->quadCount);
     updateBufferObject(tr->uvVbo, tr->uvs, 6 * tr->quadCount);
+	updateBufferObject(tr->colorVbo, tr->colors, 6 * tr->quadCount);
 
     Shader* shader = tr->shader;
     glUseProgram(shader->progId);

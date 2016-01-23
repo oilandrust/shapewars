@@ -46,8 +46,8 @@ typedef short int16;
 typedef unsigned short uint16;
 typedef int int32;
 typedef unsigned int uint32;
-typedef long int64;
-typedef unsigned long uint64;
+typedef int64_t int64;
+typedef uint64_t uint64;
 typedef float real32;
 typedef double real64;
 
@@ -64,7 +64,7 @@ struct RGBA {
     uint8 a;
 };
 
-#define PI 3.14159265
+#define PI 3.14159265f
 
 #define Kilobytes(Value) ((Value)*1024LL)
 #define Megabytes(Value) (Kilobytes(Value) * 1024LL)
@@ -118,6 +118,10 @@ inline void initializeArena(MemoryArena* arena, void* base, size_t size)
 inline void resetArena(MemoryArena* arena)
 {
     arena->used = 0;
+}
+
+inline void resetArena(MemoryArena* arena, size_t marker) {
+	arena->used = marker;
 }
 
 inline void* pushSize(MemoryArena* arena, size_t size)

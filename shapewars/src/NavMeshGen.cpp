@@ -6,7 +6,7 @@
 //
 //
 
-#define SMOOTH_DISTANCE_FIELD 0
+#define SMOOTH_DISTANCE_FIELD 1
 #define MERGE_SMALL_REGIONS 0
 
 #include "NavMeshGen.h"
@@ -20,13 +20,13 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
     uint8* rasterData = pushArray(&memory->temporaryArena, fieldHeight * fieldHeight, (uint8)0);
 	LevelRaster raster = { rasterData, fieldWidth, fieldHeight };
     
-	real32 cellWidth = (real32)level->width / fieldWidth;
-	real32 cellHeight = (real32)level->height / fieldHeight;
+	real32 cellWidth = (real32)level->width / (real32)fieldWidth;
+	real32 cellHeight = (real32)level->height / (real32)fieldHeight;
 
     for (uint32 j = 0; j < fieldHeight; j++) {
-        uint32 jw = level->height * (real32)j / fieldHeight;    
+        uint32 jw = (uint32)(level->height * (real32)j / (real32)fieldHeight);    
         for (uint32 i = 0; i < fieldWidth; i++) {
-            uint32 iw = level->width * (real32)i / fieldWidth;
+            uint32 iw = (uint32)(level->width * (real32)i / (real32)fieldWidth);
             if (level->tiles[iw + jw * level->width]) {
                 rasterData[i + j * fieldHeight] = 1;
             }
@@ -64,7 +64,6 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
         debug->contourICounts[i] = vCount;
     }
 
-	return;
     // Triangulated contours.
     Mesh3D* triangulatedCountours = pushArray<Mesh3D>(&memory->temporaryArena, contours.count);
     triangulateContours(&memory->temporaryArena, &contours, triangulatedCountours);
@@ -93,17 +92,36 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
     debug->dualICount = dual.indCount;
 }
 
-static inline int32 sep(uint32* g, uint32 w, int32 j, int32 i, int32 u) {
+static inline uint32 sep_euclid(uint32* g, uint32 w, int32 j, int32 i, int32 u) {
 	ASSERT(i < u);
-	int32 gu = g[u + j*w];
-	int32 gi = g[i + j*w];
+	uint32 gu = g[u + j*w];
+	uint32 gi = g[i + j*w];
 	return (u*u - i*i + gu*gu - gi*gi) / (2*(u-i));
 }
 
-static inline uint32 f(uint32* g, uint32 w, uint32 j, uint32 x, uint32 i) {
+static inline int32 sep_manhatan(uint32* g, uint32 w, int32 j, int32 i, int32 u) {
+	ASSERT(i < u);
+	int32 gu = g[u + j*w];
+	int32 gi = g[i + j*w];
+	if (gu >= gu + u - i) {
+		return w + w;
+	}
+	if (gi >= gu + u - i) {
+		return -2 * w;
+	}
+	return (gu - gi + i + u) / 2;
+}
+
+static inline uint32 f_euclid(uint32* g, uint32 w, uint32 j, uint32 x, uint32 i) {
 	uint32 d = x > i? x - i: i - x;
 	uint32 gv = g[i+j*w];
 	return d*d + gv*gv;
+}
+
+static inline uint32 f_manhatan(uint32* g, uint32 w, uint32 j, uint32 x, uint32 i) {
+	uint32 d = x > i ? x - i : i - x;
+	uint32 gv = g[i + j*w];
+	return d + gv;
 }
 
 void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* field)
@@ -155,7 +173,7 @@ void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* fie
 		s[0] = 0;
 		t[0] = 0;
 		for (uint32 u = 1; u < w; u++) {	
-			while (q >= 0 && f(g, w, j, t[q], s[q]) > f(g, w, j, t[q], u)) {
+			while (q >= 0 && f_euclid(g, w, j, t[q], s[q]) > f_euclid(g, w, j, t[q], u)) {
 				q--;
 			}
 			if (q < 0) {
@@ -163,7 +181,7 @@ void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* fie
 				s[0] = u;
 			}
 			else {
-				int32 ww = 1 + sep(g, w, j, s[q], u);
+				uint32 ww = 1 + sep_euclid(g, w, j, s[q], u);
 				if (ww < w) {
 					q++;
 					s[q] = u;
@@ -174,7 +192,7 @@ void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* fie
 
 		for (int32 u = w - 1; u >= 0; u--) {
 			uint32 sq = s[q];
-			distanceField[u + w*j] = -sqrt(f(g, w, j, u, sq));
+			distanceField[u + w*j] = -sqrtf((real32)f_euclid(g, w, j, u, sq));
 			if (u == t[q]) q--;
 		}
 	}
@@ -193,59 +211,59 @@ void genDistanceField(MemoryArena* arena, LevelRaster* level, DistanceField* fie
 	field->field = distanceField;
    
 #if SMOOTH_DISTANCE_FIELD
-	real32* avgField = pushArray<real32>(arena, width * height);
+	real32* avgField = pushArray<real32>(arena, w * h);
 
 	// smooth
-    for (uint32 j = 0; j < height; j++) {
-        for (uint32 i = 0; i < width; i++) {
+    for (uint32 j = 0; j < h; j++) {
+        for (uint32 i = 0; i < w; i++) {
             uint32 c = 1;
-            real32 avg = distanceField[i + j * width];
+            real32 avg = distanceField[i + j * w];
             if (avg == 0) {
-                avgField[i + j * width] = 0;
+                avgField[i + j * w] = 0;
                 continue;
             }
             // top
-            if (j + 1 < height) {
-                avg += distanceField[i + (j + 1) * width];
+            if (j + 1 < h) {
+                avg += distanceField[i + (j + 1) * w];
                 c++;
             }
             // top right
-            if (j + 1 < height && i + 1 < width) {
-                avg += distanceField[i + 1 + (j + 1) * width];
+            if (j + 1 < h && i + 1 < w) {
+                avg += distanceField[i + 1 + (j + 1) * w];
                 c++;
             }
             // right
-            if (i + 1 < width) {
-                avg += distanceField[i + 1 + j * width];
+            if (i + 1 < w) {
+                avg += distanceField[i + 1 + j * w];
                 c++;
             }
             // right bottom
-            if (i + 1 < width && j > 0) {
-                avg += distanceField[i + 1 + (j - 1) * width];
+            if (i + 1 < w && j > 0) {
+                avg += distanceField[i + 1 + (j - 1) * w];
                 c++;
             }
             // bottom
             if (j > 0) {
-                avg += distanceField[i + (j - 1) * width];
+                avg += distanceField[i + (j - 1) * w];
                 c++;
             }
             // bottom left
             if (i > 0 && j > 0) {
-                avg += distanceField[i - 1 + (j - 1) * width];
+                avg += distanceField[i - 1 + (j - 1) * w];
                 c++;
             }
             // left
             if (i > 0) {
-                avg += distanceField[i - 1 + j * width];
+                avg += distanceField[i - 1 + j * w];
                 c++;
             }
             // left top
-            if (i > 0 && j + 1 < height) {
-                avg += distanceField[i - 1 + (j + 1) * width];
+            if (i > 0 && j + 1 < h) {
+                avg += distanceField[i - 1 + (j + 1) * w];
                 c++;
             }
 
-            avgField[i + j * width] = avg / c;
+            avgField[i + j * w] = avg / c;
         }
     }
 	field->field = avgField;
@@ -263,7 +281,7 @@ GLuint debugDistanceFieldCreateTexture(MemoryArena* arena, DistanceField* field)
 
     for (uint32 j = 0; j < h; j++) {
         for (uint32 i = 0; i < w; i++) {
-            distanceFieldTexData[i + j * w] = 255 * distanceField[i + j * w] / maxDist;
+            distanceFieldTexData[i + j * w] = (uint8)(255 * distanceField[i + j * w] / maxDist);
         }
     }
     Texture tex;
@@ -475,7 +493,7 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
         sortedDistances[i] = distanceField->field[i];
     }
     std::sort(sortedDistances, sortedDistances + count);
-    const float eps = 0.000001;
+    const float eps = 0.000001f;
     uint32 levelIndex = 0;
     levelValue = sortedDistances[0];
 
@@ -560,9 +578,9 @@ GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap)
     // Assign a random color to each id
     RGB* colors = pushArray<RGB>(arena, idCount);
     for (uint32 i = 0; i < idCount; i++) {
-        colors[i].r = 255 * (real32)rand() / RAND_MAX;
-        colors[i].g = 255 * (real32)rand() / RAND_MAX;
-        colors[i].b = 255 * (real32)rand() / RAND_MAX;
+        colors[i].r = (uint8)(255 * (real32)rand() / (real32)RAND_MAX);
+        colors[i].g = (uint8)(255 * (real32)rand() / (real32)RAND_MAX);
+        colors[i].b = (uint8)(255 * (real32)rand() / (real32)RAND_MAX);
     }
 
     // Write a segment texture with id->color map.

@@ -2,6 +2,7 @@
 #include "Input.h"
 #include "Level.h"
 #include "NavMeshQuery.h"
+#include "Debug.h"
 
 void startSteering(AIEntity* entity)
 {
@@ -37,6 +38,10 @@ void updateAIEntity(AIEntity* aiEntity, real32 /* dt */)
     else {
         aiEntity->entity.velocity = 5.f * normalize(dir);
     }
+
+	if (g_debug.showPath) {
+		debugDrawLineStrip(&g_debugDraw, path->points, path->length);
+	}
 }
 
 void updateEntity(Entity* entity, real32 dt)
@@ -58,13 +63,13 @@ void updateEntity(Entity* entity, real32 dt)
 
 void initializeCameraPan(CameraPan* camera, const Vec2& levelBounds)
 {
-    Vec3 targetToCamOffset(.0f, -0.9 * 30, 20);
+    Vec3 targetToCamOffset(.0f, -.9f * 30.f, 20.f);
     camera->position = camera->target + targetToCamOffset;
 
-    camera->target = Vec3(0.5 * levelBounds.x, 0.3 * levelBounds.y, 0);
+    camera->target = Vec3(0.5f * levelBounds.x, 0.3f * levelBounds.y, 0.f);
 
-    camera->velocity = Vec3(0, 0, 0);
-    camera->accel = Vec3(0, 0, 0);
+    camera->velocity = Vec3(0.f);
+    camera->accel = Vec3(0.f);
     camera->drag = 10.0f;
 
     // acceleration and drag in m/s;
@@ -96,9 +101,9 @@ void updateCameraPan(CameraPan* camera, Input* input, Level* level, real32 dt)
     camera->velocity += acceleration * dt;
 
     camera->target = camera->target + camera->velocity * dt;
-    camera->target = min(camera->target, Vec3(level->width, level->height, 0));
-    camera->target = max(camera->target, Vec3(0, 0, 0));
+    camera->target = min3(camera->target, Vec3((real32)level->width, (real32)level->height, 0.f));
+    camera->target = max3(camera->target, Vec3(0.f));
 
-    Vec3 targetToCamOffset(.0f, -10, 30);
+    Vec3 targetToCamOffset(.0f, -10.f, 30.f);
     camera->position = camera->target + targetToCamOffset;
 }

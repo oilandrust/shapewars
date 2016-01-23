@@ -41,8 +41,8 @@ struct CameraPan {
     Vec3 velocity;
     Vec3 accel;
 
-    int32 screenWidth;
-    int32 screenHeight;
+    real32 screenWidth;
+    real32 screenHeight;
 
     // Physics constants.
     real32 drag;

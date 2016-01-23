@@ -75,6 +75,7 @@ void reloadShaders(Renderer* renderer)
 
     glBindAttribLocation(renderer->textShader.progId, POS_ATTRIB_LOC, "position");
     glBindAttribLocation(renderer->textShader.progId, UV_ATTRIB_LOC, "uv");
+	glBindAttribLocation(renderer->textShader.progId, COL_ATTRIB_LOC, "color");
 
     renderer->textShader.diffTexLoc = glGetUniformLocation(renderer->textShader.progId, "diffuse");
     renderer->textShader.resolutionLoc = glGetUniformLocation(renderer->textShader.progId, "resolution");
@@ -223,6 +224,14 @@ void pushArrayPiece(Renderer* renderer, Shader* shader,
     pushPiece(renderer, shader, 0, vao, count, rot, size, pos, color, type);
 }
 
+void pushArrayPiece(Renderer* renderer, Shader* shader,
+	GLuint vao, uint32 count, RenderPieceType type, const Vec3& color)
+{
+	Mat3 rot;
+	identity(rot);
+	pushArrayPiece(renderer, shader, vao, count, type, rot, Vec3(1.f), Vec3(0.f), color);
+}
+
 void pushIndexedArrayPiece(Renderer* renderer, Shader* shader,
     GLuint vao, uint32 count, RenderPieceType type,
     const Mat3& rot, const Vec3& size, const Vec3& pos, const Vec3& color)
@@ -232,7 +241,7 @@ void pushIndexedArrayPiece(Renderer* renderer, Shader* shader,
 
 void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
 {
-	ASSERT(!glGetError());
+	//ASSERT(!glGetError());
     uint32 count = renderer->pieceCount;
     RenderPiece* renderPieces = renderer->renderQueue;
 
@@ -244,7 +253,9 @@ void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
         else {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
-        // Bind shader and set global uniforms if required.
+		logOpenGLErrors();
+
+		// Bind shader and set global uniforms if required.
         Shader* shader = piece->shader;
         if (shader != renderer->currentShader) {
             glUseProgram(shader->progId);
@@ -252,22 +263,26 @@ void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
             glUniformMatrix4fv(shader->viewLoc, 1, true, &view.data[0]);
 			glUniformMatrix4fv(shader->projLoc, 1, true, &projection.data[0]);
 	    }
-        // Set instance uniforms.
+		logOpenGLErrors();
+        
+		// Set instance uniforms.
 		glUniformMatrix3fv(shader->rotLoc, 1, true, &piece->rotation.data[0]);
 		glUniform3f(shader->sizeLoc, piece->size.x, piece->size.y, piece->size.z);
 		glUniform3f(shader->posLoc, piece->position.x, piece->position.y, piece->position.z);
-		
+		logOpenGLErrors();
+
         // Bind texture or color.
         if (piece->type == TRIMESH_TEXTURE) {
             glActiveTexture(GL_TEXTURE0);
             glUniform1i(shader->diffTexLoc, 0);
             glBindTexture(GL_TEXTURE_2D, piece->texId);
         }
-        else {
-            glUniform3f(shader->diffuseLoc, piece->color.x, piece->color.y, piece->color.z);
-        }
-		
-        // Draw.
+		else {
+			glUniform3f(shader->diffuseLoc, piece->color.x, piece->color.y, piece->color.z);
+		}
+		logOpenGLErrors();
+        
+		// Draw.
         glBindVertexArray(piece->vao);
         if (piece->type == ARRAY_POINTS) {
             glDrawArrays(GL_POINTS, 0, piece->iCount);
@@ -289,6 +304,8 @@ void renderAll(Renderer* renderer, const Mat4& projection, const Mat4& view)
         }
 		logOpenGLErrors();
     }
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	logOpenGLErrors();
 
     renderer->pieceCount = 0;
 }

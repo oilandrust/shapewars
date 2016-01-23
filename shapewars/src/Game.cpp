@@ -53,7 +53,7 @@ void initializeGame(Game* game)
     viewCamera->focalDistance = 1.f / tanf(.5f * fovy * PI / 180.f);
     viewCamera->aspect = aspect;
 
-    game->bot.entity.position = Vec3(1, 1, 0);
+    game->bot.entity.position = Vec3(3.f, 3.f, 0.f);
     identity(game->bot.entity.orientation);
 }
 
@@ -85,10 +85,6 @@ void handleInputAndUpdateGame(Game* game, Input* input, real32 dt)
                 pullString(tempArena, navMesh, bot->entity.position, groundPos, path);
 
                 startSteering(bot);
-
-                // for debug visualizaiton.
-                updateBufferObject(game->debug->pathVbo, path->points, path->length);
-                game->debug->pathLength = path->length;
             }
             else {
                 stopSteering(bot);
@@ -107,7 +103,7 @@ void renderGame(Game* game, Renderer* renderer)
 
     Level* level = game->level;
 
-    Vec3 groundSize(level->width, level->height, 0.0f);
+    Vec3 groundSize((real32)level->width, (real32)level->height, 0.0f);
     Vec3 groundCenter(0.5f * level->width, 0.5f * level->height, 0.f);
 
     pushPlanePiece(renderer, &renderer->groundShader, identity3, groundSize, groundCenter, Vec3(.70f));

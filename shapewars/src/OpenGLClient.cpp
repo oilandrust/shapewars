@@ -245,7 +245,7 @@ bool createShaderProgram(Shader* shader, const char* vsShaderFilename, const cha
     }
     logOpenGLErrors();
 
-    return success;
+    return success == GL_TRUE;
 }
 
 void printShaderLog(GLuint shader)
