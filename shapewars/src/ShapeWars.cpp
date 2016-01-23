@@ -231,7 +231,6 @@ int main()
     game.level = &level;
     game.screenSize = Vec2(ScreenWidth, ScreenHeight);
 
-
 	real32 agentRadius = 0.3f;
 	real32 oldAgentRadius = agentRadius;
 

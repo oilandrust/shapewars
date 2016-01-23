@@ -43,6 +43,7 @@ GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap);
 
 struct Contour {
     Vec3* vertices;
+	bool* isVertex;
     uint32 count;
 };
 

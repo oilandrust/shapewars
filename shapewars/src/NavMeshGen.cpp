@@ -627,7 +627,10 @@ GLuint debugRegionsCreateTexture(MemoryArena* arena, RegionIdMap* idMap)
 
 static int32 idAt(int32* ids, uint32 w, uint32 i, uint32 j)
 {
-    return ids[i + j * w];
+	if (i >= w || j >= w) {
+		return -1;
+	}
+	return ids[i + j * w];
 };
 
 enum Dir {
@@ -636,6 +639,25 @@ enum Dir {
 	DIR_DOWN,
 	DIR_LEFT
 };
+
+static void moveForward(Dir fDir, uint32& x, uint32& y) {
+	switch (fDir) {
+	case DIR_UP:
+		y--;
+		break;
+	case DIR_RIGHT:
+		x++;
+		break;
+	case DIR_DOWN:
+		y++;
+		break;
+	case DIR_LEFT:
+		x--;
+		break;
+	default:
+		break;
+	}
+}
 
 static int32 idAtRight(int32* ids, uint32 w, uint32 h, uint32 i, uint32 j, Dir dir)
 {
@@ -667,25 +689,6 @@ static bool isEdge(int32* ids, uint32 w, uint32 h, uint32 i, uint32 j, Dir dir)
     return false;
 };
 
-static void moveForward(Dir fDir, uint32& x, uint32& y) {
-	switch (fDir) {
-	case DIR_UP:
-		y--;
-		break;
-	case DIR_RIGHT:
-		x++;
-		break;
-	case DIR_DOWN:
-		y++;
-		break;
-	case DIR_LEFT:
-		x--;
-		break;
-	default:
-		break;
-	}
-}
-
 static Vec3 vertexAt(uint32 x, uint32 y, Dir fDir, real32 mw, real32 mh, real32 cw, real32 ch) {
 	Vec3 cellCenter = Vec3((x + .5f) * cw, mh - (y - .5f) * ch - ch, .5f);
 	Vec3 offset;
@@ -708,11 +711,33 @@ static Vec3 vertexAt(uint32 x, uint32 y, Dir fDir, real32 mw, real32 mh, real32 
 	return cellCenter + offset;
 }
 
+bool isVertexAt(uint32 x, uint32 y, Dir rDir, int32* ids, uint32 w, uint32 h) {
+	IdMap map;
+	memset(&map, 0, sizeof(IdMap));
+	int32 id = ids[x + y * w];
+	int32 idRight = idAtRight(ids, w, h, x, y, rDir);
+	Dir bDir = (Dir)((rDir + 1) % 4);
+	int32 idBack = idAtRight(ids, w, h, x, y, bDir);
+	moveForward(rDir, x, y);
+	int32 idBackRight = idAtRight(ids, w, h, x, y, bDir);
+
+	if (idRight == -1 || idBack == -1 || idBackRight == -1) {
+		return true;
+	}
+
+	increment(&map, id);
+	increment(&map, idRight);
+	increment(&map, idBack);
+	increment(&map, idBackRight);
+
+	return map.ids > 2;
+}
+
 void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, uint32 h, real32 mw, real32 mh, real32 cw, real32 ch, uint32 i, uint32 j)
 {
 	uint32 count = 0;
 	Vec3* verts = pushArray<Vec3>(arena, w * h);
-
+	
 	// We visit in order from top-left to bottom so the direction must be DOWN for ccw order.
 	Dir fDir = DIR_DOWN;
 	Dir rDir = (Dir)((fDir + 1) % 4);
@@ -735,7 +760,9 @@ void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, ui
 			bool edgeRight = isEdge(ids, w, h, x, y, rDir);
 
 			if (idRight != newIdRight && edgeRight) {
-				verts[count++] = vertexAt(x, y, fDir, mw, mh, cw, ch);
+				if (isVertexAt(x, y, rDir, ids, w, h)) {
+					verts[count++] = vertexAt(x, y, fDir, mw, mh, cw, ch);
+				}
 			}
 			idRight = newIdRight;
 			continue;
@@ -747,8 +774,10 @@ void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, ui
 			rDir = fDir;
 			fDir = fDir == 0 ? DIR_LEFT : (Dir)((fDir - 1) % 4);
 
-			verts[count++] = vertexAt(x, y, fDir, mw, mh, cw, ch);
-
+			if (isVertexAt(x, y, rDir, ids, w, h)) {
+				verts[count++] = vertexAt(x, y, fDir, mw, mh, cw, ch);
+			}
+			
 			idRight = idAtRight(ids, w, h, x, y, rDir);
 			continue;
 		}
@@ -760,8 +789,10 @@ void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, ui
 			rDir = (Dir)((fDir + 1) % 4);
 			moveForward(fDir, x, y);
 
-			verts[count++] = vertexAt(x, y, fDir, mw, mh, cw, ch);
-
+			if (isVertexAt(x, y, rDir, ids, w, h)) {
+				verts[count++] = vertexAt(x, y, fDir, mw, mh, cw, ch);
+			}
+			
 			idRight = idAtRight(ids, w, h, x, y, rDir);
 			continue;
 		}
@@ -773,6 +804,12 @@ void walkCountour(MemoryArena* arena, Contour* contour, int32* ids, uint32 w, ui
 
 	contour->count = count;
 	contour->vertices = verts;
+}
+
+
+static void simplifyContour(RegionIdMap* regions, Contour* contour)
+{
+
 }
 
 void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
@@ -813,6 +850,11 @@ void genContours(MemoryArena* arena, RegionIdMap* regions, ContourSet* contours)
 			walkCountour(arena, contour, ids, w, h, widthInMeters, heightInMeters, regions->cellWidth, regions->cellHeight, i, j);
         }
     }
+
+	for (uint32 c = 0; c < contours->count; c++) {
+		Contour* contour = &contours->contours[c];
+		simplifyContour(regions, contour);
+	}
 }
 
 static uint32 nextFree(bool* excluded, uint32 count, uint32 start)
