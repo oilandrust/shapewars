@@ -295,6 +295,67 @@ GLuint debugDistanceFieldCreateTexture(MemoryArena* arena, DistanceField* field)
     return tex.texId;
 }
 
+struct IdMap {
+	int32 neighboors[4];
+	int32 counts[4];
+	int32 ids;
+};
+
+static void increment(IdMap* map, int32 id) {
+	for (int32 i = 0; i < map->ids; i++) {
+		if (map->neighboors[i] == id) {
+			map->counts[i]++;
+			return;
+		}
+	}
+	map->neighboors[map->ids] = id;
+	map->counts[map->ids] = 1;
+	map->ids++;
+}
+
+static int32 maximum(IdMap* map) {
+	int32 maxI = -1;
+	int32 maxC = -1;
+	for (int32 i = 0; i < map->ids; i++) {
+		if (map->counts[i] > maxC) {
+			maxC = map->counts[i];
+			maxI = i;
+		}
+	}
+	return map->neighboors[maxI];
+}
+
+static int32 mostImportantNeighbor(int32* regionIds_t0, uint32 width, uint32 height, uint32 i, uint32 j) {
+	IdMap map;
+	memset(&map, 0, sizeof(IdMap));
+	// top
+	if (j + 1 < height && regionIds_t0[i + (j + 1) * width] != -1)
+		increment(&map, regionIds_t0[i + (j + 1) * width]);
+	// top right
+	if (j + 1 < height && i + 1 < width && regionIds_t0[i + 1 + (j + 1) * width] != -1)
+		increment(&map, regionIds_t0[i + 1 + (j + 1) * width]);
+	// right
+	if (i + 1 < width && regionIds_t0[i + 1 + j * width] != -1)
+		increment(&map, regionIds_t0[i + 1 + j * width]);
+	// right bottom
+	if (i + 1 < width && j > 0 && regionIds_t0[i + 1 + (j-1) * width] != -1)
+		increment(&map, regionIds_t0[i + 1 + (j-1) * width]);
+	// bottom
+	if (j > 0 && regionIds_t0[i + (j - 1) * width] != -1)
+		increment(&map, regionIds_t0[i + (j - 1) * width]);
+	// bottom left
+	if (j > 0 && i > 0 && regionIds_t0[i - 1 + (j - 1) * width] != -1)
+		increment(&map, regionIds_t0[i - 1 + (j - 1) * width]);
+	// left
+	if (i > 0 && regionIds_t0[i - 1 + j * width] != -1)
+		increment(&map, regionIds_t0[i - 1 + j * width]);
+	// left top
+	if (i > 0 && j + 1 < height && regionIds_t0[i - 1 + (j+1) * width] != -1)
+		increment(&map, regionIds_t0[i - 1 + (j+1) * width]);
+
+	return maximum(&map);
+};
+
 static void flood(real32* field, real32 level, int32* regionIds_t0, int32* regionIds_t1,
     uint32 width, uint32 height,
     uint32 i, uint32 j, int32 newId)
@@ -303,36 +364,40 @@ static void flood(real32* field, real32 level, int32* regionIds_t0, int32* regio
     if (j + 1 < height) {
         uint32 n = i + (j + 1) * width;
         if (field[n] < level && regionIds_t0[n] == -1) {
-            regionIds_t1[n] = newId;
-            regionIds_t0[n] = newId;
-            flood(field, level, regionIds_t0, regionIds_t1, width, height, i, j + 1, newId);
+			int32 id = mostImportantNeighbor(regionIds_t0, width, height, i, j + 1);
+			regionIds_t1[n] = id;
+            regionIds_t0[n] = id;
+            flood(field, level, regionIds_t0, regionIds_t1, width, height, i, j + 1, id);
         }
     }
     // right
     if (i + 1 < width) {
         uint32 n = i + 1 + j * width;
         if (field[n] < level && regionIds_t0[n] == -1) {
-            regionIds_t1[n] = newId;
-            regionIds_t0[n] = newId;
-            flood(field, level, regionIds_t0, regionIds_t1, width, height, i + 1, j, newId);
+			int32 id = mostImportantNeighbor(regionIds_t0, width, height, i + 1, j);
+			regionIds_t1[n] = id;
+            regionIds_t0[n] = id;
+            flood(field, level, regionIds_t0, regionIds_t1, width, height, i + 1, j, id);
         }
     }
     // bottom
     if (j > 0) {
         uint32 n = i + (j - 1) * width;
         if (field[n] < level && regionIds_t0[n] == -1) {
-            regionIds_t1[n] = newId;
-            regionIds_t0[n] = newId;
-            flood(field, level, regionIds_t0, regionIds_t1, width, height, i, j - 1, newId);
+			int32 id = mostImportantNeighbor(regionIds_t0, width, height, i, j - 1);
+			regionIds_t1[n] = id;
+            regionIds_t0[n] = id;
+            flood(field, level, regionIds_t0, regionIds_t1, width, height, i, j - 1, id);
         }
     }
     // left
     if (i > 0) {
         uint32 n = i - 1 + j * width;
         if (field[n] < level && regionIds_t0[n] == -1) {
-            regionIds_t1[n] = newId;
-            regionIds_t0[n] = newId;
-            flood(field, level, regionIds_t0, regionIds_t1, width, height, i - 1, j, newId);
+			int32 id = mostImportantNeighbor(regionIds_t0, width, height, i - 1, j);
+			regionIds_t1[n] = id;
+            regionIds_t0[n] = id;
+            flood(field, level, regionIds_t0, regionIds_t1, width, height, i - 1, j, id);
         }
     }
 };
@@ -373,55 +438,6 @@ static void floodNew(real32* field, real32 level, int32* regionIds_t0, int32* re
             floodNew(field, level, regionIds_t0, regionIds_t1, width, height, i - 1, j, newId);
         }
     }
-};
-
-struct IdMap {
-    int32 neighboors[4];
-    int32 counts[4];
-    int32 ids;
-};
-
-static void increment(IdMap* map, int32 id) {
-    for (int32 i = 0; i < map->ids; i++) {
-        if (map->neighboors[i] == id) {
-            map->counts[i]++;
-            return;
-        }
-    }
-    map->neighboors[map->ids] = id;
-    map->counts[map->ids] = 1;
-    map->ids++;
-}
-
-static int32 maximum(IdMap* map) {
-    int32 maxI = -1;
-    int32 maxC = -1;
-    for (int32 i = 0; i < map->ids; i++) {
-        if (map->counts[i] > maxC) {
-            maxC = map->counts[i];
-            maxI = i;
-        }
-    }
-    return map->neighboors[maxI];
-}
-
-static int32 mostImportantNeighbor(int32* regionIds_t0, uint32 width, uint32 height, uint32 i, uint32 j) {
-    IdMap map;
-	memset(&map, 0, sizeof(IdMap));
-    // top
-    if (j + 1 < height)
-        increment(&map, regionIds_t0[i + (j + 1) * width]);
-    // right
-    if (i + 1 < width)
-        increment(&map, regionIds_t0[i + 1 + j * width]);
-    // bottom
-    if (j > 0)
-        increment(&map, regionIds_t0[i + (j - 1) * width]);
-    // left
-    if (i > 0)
-        increment(&map, regionIds_t0[i - 1 + j * width]);
-
-    return maximum(&map);
 };
 
 static void mergeIfIsolated(int32* regionIds_t0, uint32 width, uint32 height, uint32 i, uint32 j, int32 gid) {
@@ -466,6 +482,22 @@ static void mergeIfIsolated(int32* regionIds_t0, uint32 width, uint32 height, ui
     }
 };
 
+struct Cell {
+	uint32 i;
+	uint32 j;
+	real32 dist;
+};
+
+static int compCell(const Cell& c1, const Cell& c2) {
+	if (c1.dist < c2.dist) {
+		return 1;
+	} 
+	if (c1.dist > c2.dist) {
+		return -1;
+	}
+
+	return 0;
+}
 
 void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* regions, real32 radius)
 {
@@ -489,9 +521,11 @@ void genRegions(MemoryArena* arena, DistanceField* distanceField, RegionIdMap* r
     }
 
     real32* sortedDistances = pushArray<real32>(arena, count);
-    for (uint32 i = 0; i < count; i++) {
-        sortedDistances[i] = distanceField->field[i];
-    }
+	for (uint32 j = 0; j < height; j++) {
+		for (uint32 i = 0; i < width; i++) {
+			sortedDistances[i + j*width] = distanceField->field[i + j*width];
+		}
+	}
     std::sort(sortedDistances, sortedDistances + count);
     const float eps = 0.000001f;
     uint32 levelIndex = 0;

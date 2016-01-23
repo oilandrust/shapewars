@@ -21,6 +21,8 @@ struct DebugOption {
 	const char* text;
 	Rect2 bbox;
 	bool* active;
+	real32* value;
+	real32 increment;
 	bool hovered;
 };
 
@@ -71,6 +73,11 @@ struct Debug {
     NavMesh* navMesh;
 
     bool showPath;
+
+	real32* agentRadius;
+
+	bool showWorld;
+	bool showWalls;
 
     bool showText;
     real32 fps;

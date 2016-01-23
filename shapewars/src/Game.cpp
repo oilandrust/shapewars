@@ -108,16 +108,17 @@ void renderGame(Game* game, Renderer* renderer)
 
     pushPlanePiece(renderer, &renderer->groundShader, identity3, groundSize, groundCenter, Vec3(.70f));
 
+	Vec3 boxColor = Vec3(0.8f);
     // Draw Walls
-    Vec3 boxColor = Vec3(0.8f);
-    Vec3 boxSize = Vec3(1.f);
-    Vec3* walls = level->walls;
-    uint32 wallCount = level->wallCount;
+	if (g_debug.showWalls) {
+		Vec3 boxSize = Vec3(1.f);
+		Vec3* walls = level->walls;
+		uint32 wallCount = level->wallCount;
 
-    for (uint32 i = 0; i < wallCount; i++) {
-        pushBoxPiece(renderer, &renderer->wallShader, identity3, boxSize, walls[i], boxColor);
-    }
-
+		for (uint32 i = 0; i < wallCount; i++) {
+			pushBoxPiece(renderer, &renderer->wallShader, identity3, boxSize, walls[i], boxColor);
+		}
+	}
     // Bot box
     Vec3 botPos = game->bot.entity.position + Vec3(0.f, 0.f, .5f);
     pushBoxPiece(renderer, &renderer->flatDiffShader, game->bot.entity.orientation, Vec3(0.5), botPos, boxColor);

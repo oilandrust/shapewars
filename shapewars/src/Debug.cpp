@@ -31,11 +31,26 @@ void debugDrawLineStrip(DebugDraw* dd, Vec3* verts, uint32 count)
 	dd->count = count;
 }
 
-static void defineOption(Font* font, DebugOption* options, uint32& count, Vec2& pos, const char* text, bool* debugVar)
+static void defineOption(Font* font, DebugOption* options, uint32& count, Vec2& pos, const char* text, bool* debugVar, bool defaultValue = false)
 {
 	DebugOption* option = options + count;
 	option->active = debugVar;
+	if (debugVar) {
+		*option->active = defaultValue;
+	}
 	option->text = text;
+	Vec2 size = textSize(font, text);
+	option->bbox = { pos - Vec2(0.f, size.y), pos + Vec2(size.x, 0.f) };
+	pos.y += font->size;
+	count++;
+}
+
+static void defineRealOption(Font* font, DebugOption* options, uint32& count, Vec2& pos, const char* text, real32* debugVar, real32 increment)
+{
+	DebugOption* option = options + count;
+	option->value = debugVar;
+	option->text = text;
+	option->increment = increment;
 	Vec2 size = textSize(font, text);
 	option->bbox = { pos - Vec2(0.f, size.y), pos + Vec2(size.x, 0.f) };
 	pos.y += font->size;
@@ -45,7 +60,7 @@ static void defineOption(Font* font, DebugOption* options, uint32& count, Vec2& 
 void initalizeDebug(Debug* debug) 
 {
 	DebugOption* options = debug->options;
-	memset(options, 0, MAX_DEBUG_OPTIONS);
+	memset(options, 0, MAX_DEBUG_OPTIONS * sizeof(DebugOption));
 	uint32 count = 0;
 	Font* font = debug->font;
 
@@ -54,6 +69,8 @@ void initalizeDebug(Debug* debug)
 	Vec2 pos((real32)font->size);
 	defineOption(font, options, count, pos, "NavMesh:", NULL);
 	defineOption(font, options, count, pos, "    Show distance field.", &debug->showDistanceField);
+	defineRealOption(font, options, count, pos, "    Increase radius.", debug->agentRadius, 0.1f);
+	defineRealOption(font, options, count, pos, "    Decrease radius.", debug->agentRadius, -0.1f);
 	defineOption(font, options, count, pos, "    Show regions.", &debug->showRegions);
 	defineOption(font, options, count, pos, "    Show region contours.", &debug->showContours);
 	defineOption(font, options, count, pos, "    Show triangulated contours.", &debug->showTriRegions);
@@ -61,6 +78,9 @@ void initalizeDebug(Debug* debug)
 	defineOption(font, options, count, pos, "    Show navmesh dual (connectivity).", &debug->showDual);
 	defineOption(font, options, count, pos, "Path finding:", NULL);
 	defineOption(font, options, count, pos, "    Show path, also shows path polygons if navmesh active.", &debug->showPath);
+	defineOption(font, options, count, pos, "Rendering:", NULL);
+	defineOption(font, options, count, pos, "    Render worls.", &debug->showWorld, true);
+	defineOption(font, options, count, pos, "    Render walls.", &debug->showWalls, true);
 	defineOption(font, options, count, pos, "Misc:", NULL);
 	defineOption(font, options, count, pos, "    (h): Hide/show debug menu.", &debug->showText);
 	defineOption(font, options, count, pos, "    (r): Reload all shaders.", NULL);
@@ -75,6 +95,10 @@ void debugHandleInput(Debug* debug, Input* input)
         debug->showText = !debug->showText;
     }
 
+	if (!debug->showText) {
+		return;
+	}
+
 	uint32 count = debug->optionCount;
 	DebugOption* options = debug->options;
 	Vec2 mousePos(input->mouseX, input->mouseY);
@@ -82,8 +106,12 @@ void debugHandleInput(Debug* debug, Input* input)
 		DebugOption* opt = options + i;
 		if (insideRect(opt->bbox, mousePos)) {
 			opt->hovered = true;
+		
 			if (opt->active && input->keyStates[MOUSE_LEFT].clicked) {
 				*opt->active = !(*opt->active);
+			}
+			if (opt->value && input->keyStates[MOUSE_LEFT].clicked) {
+				*opt->value += opt->increment;
 			}
 		}
 		else {
@@ -158,7 +186,9 @@ void renderDebug(Debug* debug, Renderer* renderer, TextRenderer* tr)
 	DebugOption* options = debug->options;
 	for (uint32 i = 0; i < count; i++) {
 		DebugOption* opt = options + i;
-		Vec3 col = colActive;
+		
+		Vec3 col = opt->hovered ? colHovered : colActive;
+
 		if(opt->active != NULL) {
 			col = opt->hovered ? colHovered
 				: (*opt->active ? colActive : colInactive);

@@ -231,8 +231,13 @@ int main()
     game.level = &level;
     game.screenSize = Vec2(ScreenWidth, ScreenHeight);
 
+
+	real32 agentRadius = 0.f;
+	real32 oldAgentRadius = agentRadius;
+
 	Debug* debug = &g_debug;
  	memset(&g_debug, 0, sizeof(Debug));
+	debug->agentRadius = &agentRadius;
 	debug->planeSize = (real32)level.width;
 	debug->font = &textRenderer.defaultFont;
     game.debug = debug;
@@ -246,7 +251,6 @@ int main()
 	game.navMesh = &navMesh;
 	initializeGame(&game);
 
-	real32 agentRadius = 0.f;
 	size_t navMemBegin = memory.persistentArena.used;
 
 	initializePathFinding(&memory, navMemBegin, debug, &game, &level, &navMesh, agentRadius);
@@ -297,17 +301,14 @@ int main()
            }
 		}
 		// Change agent radius.
-		/*
-		if (input.keyStates[DEBUG_INC_RADIUS].clicked) {
-			agentRadius += 0.1f;
-			initializePathFinding(&memory, navMemBegin, &debug, &game, &level, &navMesh, agentRadius);
+		if (agentRadius != oldAgentRadius) {
+			if (agentRadius < 0.f) {
+				agentRadius = 0.f;
+			}
+			oldAgentRadius = agentRadius;
+			initializePathFinding(&memory, navMemBegin, debug, &game, &level, &navMesh, agentRadius);
 		}
-		if (input.keyStates[DEBUG_DEC_RADIUS].clicked) {
-			agentRadius -= 0.1f;
-			initializePathFinding(&memory, navMemBegin, &debug, &game, &level, &navMesh, agentRadius);
-		}
-		*/
-
+		
         // Update
         handleInputAndUpdateGame(&game, &input, dt);
         debugHandleInput(debug, &input);
