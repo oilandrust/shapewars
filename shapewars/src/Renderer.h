@@ -33,6 +33,9 @@ struct RenderPiece {
 #define MAX_RENDER_PICES 1024
 
 struct Renderer {
+	uint32 winWidth;
+	uint32 winHeight;
+
     RenderPiece* renderQueue;
     uint32 pieceCount;
 

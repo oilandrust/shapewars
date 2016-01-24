@@ -45,6 +45,8 @@ struct Game {
 
 void initializeGame(Game* game);
 
+void setWindowSize(Game* game, uint32 width, uint32 height);
+
 void handleInputAndUpdateGame(Game* game, Input* input, real32 dt);
 
 void renderGame(Game* game, Renderer* renderer);

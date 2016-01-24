@@ -40,6 +40,8 @@ void rendererBeginFrame(Renderer* renderer)
     
     glClear(GL_COLOR_BUFFER_BIT);
 
+	glViewport(0, 0, renderer->winWidth, renderer->winHeight);
+
     renderer->currentShader = 0;
 }
 

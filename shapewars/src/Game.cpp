@@ -36,23 +36,32 @@ static Ray unproject(ViewCamera* camera, const Vec2& screenPos)
     return result;
 }
 
+void setWindowSize(Game* game, uint32 width, uint32 height)
+{
+	game->screenSize = Vec2((real32)width, (real32)height);
+
+	CameraPan* camera = &game->camera;
+	ViewCamera* viewCamera = &game->viewCamera;
+
+	camera->screenWidth = game->screenSize.x;
+	camera->screenHeight = game->screenSize.y;
+
+	real32 aspect = (real32)game->screenSize.x / (real32)game->screenSize.y;
+	real32 fovy = 40.f;
+	memset(viewCamera->projection.data, 0, 16 * sizeof(real32));
+	perspective(viewCamera->projection, fovy, aspect, 1.f, 200.f);
+	viewCamera->focalDistance = 1.f / tanf(.5f * fovy * PI / 180.f);
+	viewCamera->aspect = aspect;
+
+}
+
 void initializeGame(Game* game)
 {
     CameraPan* camera = &game->camera;
-    ViewCamera* viewCamera = &game->viewCamera;
     Level* level = game->level;
 
     initializeCameraPan(camera, Vec2(level->width, level->height));
-    camera->screenWidth = game->screenSize.x;
-    camera->screenHeight = game->screenSize.y;
-
-    real32 aspect = (real32)game->screenSize.x / (real32)game->screenSize.y;
-    real32 fovy = 40.f;
-	memset(viewCamera->projection.data, 0, 16*sizeof(real32));
-    perspective(viewCamera->projection, fovy, aspect, 1.f, 200.f);
-    viewCamera->focalDistance = 1.f / tanf(.5f * fovy * PI / 180.f);
-    viewCamera->aspect = aspect;
-
+	
     game->bot.entity.position = Vec3(3.f, 3.f, 0.f);
     identity(game->bot.entity.orientation);
 }

@@ -65,7 +65,7 @@ void initializeNavMesh(Memory* memory, Debug* debug, Level* level, NavMesh* navM
         debug->contourICounts[i] = vCount;
     }
 
-    // Triangulated contours.
+	// Triangulated contours.
     Mesh3D* triangulatedCountours = pushArray<Mesh3D>(&memory->temporaryArena, contours.count);
     triangulateContours(&memory->temporaryArena, &contours, triangulatedCountours);
 
@@ -870,6 +870,42 @@ static bool isCCWOrColinear(const Vec3& p0, const Vec3& p1, const Vec3& p2)
     return cross(p1 - p0, p2 - p1).z >= 0;
 }
 
+static bool segmentsIntersect(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3) {
+	real32 s1_x, s1_y, s2_x, s2_y;
+	s1_x = p1.x - p0.x;     s1_y = p1.y - p0.y;
+	s2_x = p3.x - p2.x;     s2_y = p3.y - p2.y;
+
+	real32 d0 = (-s2_x * s1_y + s1_x * s2_y);
+	real32 d1 = (-s2_x * s1_y + s1_x * s2_y);
+
+	if (d0 < 0.000001 || d1 < 0.000001) {
+		return false;
+	}
+
+	real32 s, t;
+	s = (-s1_y * (p0.x - p2.x) + s1_x * (p0.y - p2.y)) / d0;
+	t = (s2_x * (p0.y - p2.y) - s2_y * (p0.x - p2.x)) / d1;
+
+	if (s > 0 && s < 1 && t > 0 && t < 1) {
+		return true;
+	}
+
+	return false;
+}
+
+static bool intersectsContour(Vec3* verts, uint32 count, const Vec3& p0, const Vec3& p1) {
+	for (uint32 s = 0; s < count; s++) {
+		Vec3 s0 = verts[s];
+		Vec3 s1 = verts[(s + 1) % count];
+
+		if (segmentsIntersect(s0.xy(), s1.xy(), p0.xy(), p1.xy())) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void triangulateContours(MemoryArena* arena, ContourSet* contours, Mesh3D* meshes)
 {
     uint32 totalVCount = 0;
@@ -919,7 +955,7 @@ void triangulateContours(MemoryArena* arena, ContourSet* contours, Mesh3D* meshe
                 uint32 i1 = nextFree(excluded, vCount, (i0 + 1) % vCount);
                 uint32 i2 = nextFree(excluded, vCount, (i1 + 1) % vCount);
 
-                if (isCCW(verts[i0], verts[i1], verts[i2])) {
+                if (isCCW(verts[i0], verts[i1], verts[i2]) && !intersectsContour(verts, vCount, verts[i2], verts[i0])) {
                     real32 eLength = length(verts[i2] - verts[i0]);
                     if (eLength < minEdgeLength) {
                         found = true;

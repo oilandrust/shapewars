@@ -46,20 +46,20 @@
 // Pause Menu
 // Multiple entities
 
-SDL_Window* createSDLGLWindow(uint32& width, uint32& height, bool hd, bool fullScreen)
+SDL_Window* createSDLGLWindow(uint32& width, uint32& height, SDL_DisplayMode& current, bool hd, bool fullScreen)
 {
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         return 0;
     }
 
-    SDL_DisplayMode current;
     for (int32 i = 0; i < SDL_GetNumVideoDisplays(); i++) {
         int32 ret = SDL_GetCurrentDisplayMode(i, &current);
         ASSERT(ret == 0);
         if (ret != 0)
             SDL_Log("Could not get display mode for video display #%d: %s", i, SDL_GetError());
-        else
-            SDL_Log("Display #%d: current display mode is %dx%dpx @ %dhz. \n", i, current.w, current.h, current.refresh_rate);
+		else {
+			SDL_Log("Display #%d: current display mode is %dx%dpx @ %dhz. \n", i, current.w, current.h, current.refresh_rate);
+		}
     }
 
     if (hd) {
@@ -172,7 +172,7 @@ void initializePathFinding(Memory* memory, size_t memBegin, Debug* debug, Game* 
 	resetArena(&memory->persistentArena, memBegin);
 	
 	memset(navMesh, 0, sizeof(navMesh));
-	initializeNavMesh(memory, debug, level, navMesh, 2 * level->width, 2 * level->height, agentRadius);
+	initializeNavMesh(memory, debug, level, navMesh, 4 * level->width, 4 * level->height, agentRadius);
 	resetArena(&memory->temporaryArena);
 	
 	initializePath(&memory->persistentArena, &game->bot.path, navMesh->polyCount);
@@ -187,12 +187,15 @@ int main()
 	cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
 	printf ("Working directory is %s", cCurrentPath);
 
-    uint32 ScreenWidth = 640;
-    uint32 ScreenHeight = 480;
-    bool fullScreen = false;
+	uint32 devScreenWidth = 640;
+	uint32 devScreenHeight = 480;
+    uint32 ScreenWidth = devScreenWidth;
+    uint32 ScreenHeight = devScreenHeight;
+	bool fullScreen = false;
     bool hd = false;
 
-    SDL_Window* window = createSDLGLWindow(ScreenWidth, ScreenHeight, hd, fullScreen);
+	SDL_DisplayMode display;
+    SDL_Window* window = createSDLGLWindow(ScreenWidth, ScreenHeight, display, hd, fullScreen);
     if (window == NULL) {
         return -1;
     }
@@ -212,6 +215,8 @@ int main()
     Renderer renderer;
 	memset(&renderer, 0, sizeof(Renderer));
     intializeRenderer(&memory.persistentArena, &renderer);
+	renderer.winWidth = ScreenWidth;
+	renderer.winHeight = ScreenHeight;
 
     TextRenderer textRenderer;
     initalizeTextRenderer(&memory, &textRenderer);
@@ -220,7 +225,7 @@ int main()
 
     // Level
     Level level;
-    initalizeLevel(&memory.persistentArena, &level, level3, MAP_WIDTH, MAP_HEIGHT);
+    initalizeLevel(&memory.persistentArena, &level, level1, MAP_WIDTH, MAP_HEIGHT);
 
     GLuint landscapeVao;
     uint32 landscapeCount = 0;
@@ -229,9 +234,9 @@ int main()
     Game game;
     game.tempArena = &memory.temporaryArena;
     game.level = &level;
-    game.screenSize = Vec2(ScreenWidth, ScreenHeight);
-
-	real32 agentRadius = 0.3f;
+	setWindowSize(&game, ScreenWidth, ScreenHeight);
+    
+	real32 agentRadius = 0.5f;
 	real32 oldAgentRadius = agentRadius;
 
 	Debug* debug = &g_debug;
@@ -289,14 +294,24 @@ int main()
         // Toggle full-screen
         if (input.keyStates[DEBUG_TOGGLE_FULLSCREEN].clicked) {
 			if (fullScreen) {
-               int32 res = SDL_SetWindowFullscreen(window, 0);
-               ASSERT(res);
-               fullScreen = false;
+				SDL_SetWindowSize(window, ScreenWidth, ScreenHeight);
+				int32 res = SDL_SetWindowFullscreen(window, 0);
+				ASSERT(res == 0);
+				fullScreen = false;
+				textRenderer.screenRes = Vec2(ScreenWidth, ScreenHeight);
+				setWindowSize(&game, ScreenWidth, ScreenHeight);
+				renderer.winWidth = ScreenWidth;
+				renderer.winHeight = ScreenHeight;
 			}
 			else {
+				SDL_SetWindowSize(window, display.w, display.h);
 				int32 res = SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-				ASSERT(res);
+				ASSERT(res == 0);
 				fullScreen = true;
+				textRenderer.screenRes = Vec2(ScreenWidth, ScreenHeight);
+				setWindowSize(&game, display.w, display.h);
+				renderer.winWidth = display.w;
+				renderer.winHeight = display.h;
            }
 		}
 		// Change agent radius.
@@ -320,7 +335,6 @@ int main()
 
         // Draw
         renderGame(&game, &renderer);
-
         renderDebug(debug, &renderer, &textRenderer);
 
         // Set the view Matrix

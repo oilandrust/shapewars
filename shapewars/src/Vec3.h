@@ -31,6 +31,10 @@ struct Vec3 {
     }
 
     Vec3() {}
+
+	Vec2 xy() const {
+		return Vec2(x,y);
+	}
 };
 
 inline Vec3 operator+(const Vec3& a, const Vec3& b)
