@@ -22,13 +22,13 @@
 #include "Text.h"
 #include "Vec3.h"
 
-#include <stdio.h>  /* defines FILENAME_MAX */
+#include <stdio.h> /* defines FILENAME_MAX */
 #ifdef _WIN32
-    #include <direct.h>
-    #define GetCurrentDir _getcwd
+#include <direct.h>
+#define GetCurrentDir _getcwd
 #else
-    #include <unistd.h>
-    #define GetCurrentDir getcwd
+#include <unistd.h>
+#define GetCurrentDir getcwd
 #endif
 
 // TODO:
@@ -57,9 +57,9 @@ SDL_Window* createSDLGLWindow(uint32& width, uint32& height, SDL_DisplayMode& cu
         ASSERT(ret == 0);
         if (ret != 0)
             SDL_Log("Could not get display mode for video display #%d: %s", i, SDL_GetError());
-		else {
-			SDL_Log("Display #%d: current display mode is %dx%dpx @ %dhz. \n", i, current.w, current.h, current.refresh_rate);
-		}
+        else {
+            SDL_Log("Display #%d: current display mode is %dx%dpx @ %dhz. \n", i, current.w, current.h, current.refresh_rate);
+        }
     }
 
     if (hd) {
@@ -124,7 +124,7 @@ void generateLandscape(MemoryArena* tempArena, real32 width, real32 height, GLui
     uint32 iCount = 0;
 
     real32 borderX = 0.5f * width;
-    real32 borderY = 0.5f* height;
+    real32 borderY = 0.5f * height;
 
     real32 bMinSize = 1.f;
     real32 bMaxSize = 6.f;
@@ -168,33 +168,34 @@ void generateLandscape(MemoryArena* tempArena, real32 width, real32 height, GLui
     resetArena(tempArena);
 }
 
-void initializePathFinding(Memory* memory, size_t memBegin, Debug* debug, Game* game, Level* level, NavMesh* navMesh, real32 agentRadius) {
-	resetArena(&memory->persistentArena, memBegin);
-	
-	memset(navMesh, 0, sizeof(navMesh));
-	initializeNavMesh(memory, debug, level, navMesh, 4 * level->width, 4 * level->height, agentRadius);
-	resetArena(&memory->temporaryArena);
-	
-	initializePath(&memory->persistentArena, &game->bot.path, navMesh->polyCount);
+void initializePathFinding(Memory* memory, size_t memBegin, Debug* debug, Game* game, Level* level, NavMesh* navMesh, real32 agentRadius)
+{
+    resetArena(&memory->persistentArena, memBegin);
+
+    memset(navMesh, 0, sizeof(navMesh));
+    initializeNavMesh(memory, debug, level, navMesh, 4 * level->width, 4 * level->height, agentRadius);
+    resetArena(&memory->temporaryArena);
+
+    initializePath(&memory->persistentArena, &game->bot.path, navMesh->polyCount);
 }
 
 int main()
 {
-	char cCurrentPath[FILENAME_MAX];
-	if (!GetCurrentDir(cCurrentPath, sizeof(cCurrentPath))) {
-		return errno;
-	}
-	cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
-	printf ("Working directory is %s", cCurrentPath);
+    char cCurrentPath[FILENAME_MAX];
+    if (!GetCurrentDir(cCurrentPath, sizeof(cCurrentPath))) {
+        return errno;
+    }
+    cCurrentPath[sizeof(cCurrentPath) - 1] = '\0';
+    printf("Working directory is %s", cCurrentPath);
 
-	uint32 devScreenWidth = 640;
-	uint32 devScreenHeight = 480;
+    uint32 devScreenWidth = 640;
+    uint32 devScreenHeight = 480;
     uint32 ScreenWidth = devScreenWidth;
     uint32 ScreenHeight = devScreenHeight;
-	bool fullScreen = false;
-    bool hd = false;
+    bool fullScreen = false;
+    bool hd = true;
 
-	SDL_DisplayMode display;
+    SDL_DisplayMode display;
     SDL_Window* window = createSDLGLWindow(ScreenWidth, ScreenHeight, display, hd, fullScreen);
     if (window == NULL) {
         return -1;
@@ -213,10 +214,10 @@ int main()
 
     // Initialize the rendering resources
     Renderer renderer;
-	memset(&renderer, 0, sizeof(Renderer));
+    memset(&renderer, 0, sizeof(Renderer));
     intializeRenderer(&memory.persistentArena, &renderer);
-	renderer.winWidth = ScreenWidth;
-	renderer.winHeight = ScreenHeight;
+    renderer.winWidth = ScreenWidth;
+    renderer.winHeight = ScreenHeight;
 
     TextRenderer textRenderer;
     initalizeTextRenderer(&memory, &textRenderer);
@@ -234,32 +235,32 @@ int main()
     Game game;
     game.tempArena = &memory.temporaryArena;
     game.level = &level;
-	setWindowSize(&game, ScreenWidth, ScreenHeight);
-    
-	real32 agentRadius = 0.5f;
-	real32 oldAgentRadius = agentRadius;
+    setWindowSize(&game, ScreenWidth, ScreenHeight);
 
-	Debug* debug = &g_debug;
- 	memset(&g_debug, 0, sizeof(Debug));
-	debug->agentRadius = &agentRadius;
-	debug->planeSize = (real32)level.width;
-	debug->font = &textRenderer.defaultFont;
+    real32 agentRadius = 0.5f;
+    real32 oldAgentRadius = agentRadius;
+
+    Debug* debug = &g_debug;
+    memset(&g_debug, 0, sizeof(Debug));
+    debug->agentRadius = &agentRadius;
+    debug->planeSize = (real32)level.width;
+    debug->font = &textRenderer.defaultFont;
     game.debug = debug;
-	initalizeDebug(debug);
+    initalizeDebug(debug);
 
-	DebugDraw* debugDraw = &g_debugDraw;
-	initializeDebugDraw(debugDraw);
+    DebugDraw* debugDraw = &g_debugDraw;
+    initializeDebugDraw(debugDraw);
 
     NavMesh navMesh;
-	debug->navMesh = &navMesh;
-	game.navMesh = &navMesh;
-	initializeGame(&game);
+    debug->navMesh = &navMesh;
+    game.navMesh = &navMesh;
+    initializeGame(&game);
 
-	size_t navMemBegin = memory.persistentArena.used;
+    size_t navMemBegin = memory.persistentArena.used;
 
-	initializePathFinding(&memory, navMemBegin, debug, &game, &level, &navMesh, agentRadius);
+    initializePathFinding(&memory, navMemBegin, debug, &game, &level, &navMesh, agentRadius);
 
-	Input input;
+    Input input;
     memset(&input, 0, sizeof(input));
 
     // Timers
@@ -293,36 +294,36 @@ int main()
         }
         // Toggle full-screen
         if (input.keyStates[DEBUG_TOGGLE_FULLSCREEN].clicked) {
-			if (fullScreen) {
-				SDL_SetWindowSize(window, ScreenWidth, ScreenHeight);
-				int32 res = SDL_SetWindowFullscreen(window, 0);
-				ASSERT(res == 0);
-				fullScreen = false;
-				textRenderer.screenRes = Vec2(ScreenWidth, ScreenHeight);
-				setWindowSize(&game, ScreenWidth, ScreenHeight);
-				renderer.winWidth = ScreenWidth;
-				renderer.winHeight = ScreenHeight;
-			}
-			else {
-				SDL_SetWindowSize(window, display.w, display.h);
-				int32 res = SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-				ASSERT(res == 0);
-				fullScreen = true;
-				textRenderer.screenRes = Vec2(ScreenWidth, ScreenHeight);
-				setWindowSize(&game, display.w, display.h);
-				renderer.winWidth = display.w;
-				renderer.winHeight = display.h;
-           }
-		}
-		// Change agent radius.
-		if (agentRadius != oldAgentRadius) {
-			if (agentRadius < 0.f) {
-				agentRadius = 0.f;
-			}
-			oldAgentRadius = agentRadius;
-			initializePathFinding(&memory, navMemBegin, debug, &game, &level, &navMesh, agentRadius);
-		}
-		
+            if (fullScreen) {
+                SDL_SetWindowSize(window, ScreenWidth, ScreenHeight);
+                int32 res = SDL_SetWindowFullscreen(window, 0);
+                ASSERT(res == 0);
+                fullScreen = false;
+                textRenderer.screenRes = Vec2(ScreenWidth, ScreenHeight);
+                setWindowSize(&game, ScreenWidth, ScreenHeight);
+                renderer.winWidth = ScreenWidth;
+                renderer.winHeight = ScreenHeight;
+            }
+            else {
+                SDL_SetWindowSize(window, display.w, display.h);
+                int32 res = SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+                ASSERT(res == 0);
+                fullScreen = true;
+                textRenderer.screenRes = Vec2(ScreenWidth, ScreenHeight);
+                setWindowSize(&game, display.w, display.h);
+                renderer.winWidth = display.w;
+                renderer.winHeight = display.h;
+            }
+        }
+        // Change agent radius.
+        if (agentRadius != oldAgentRadius) {
+            if (agentRadius < 0.f) {
+                agentRadius = 0.f;
+            }
+            oldAgentRadius = agentRadius;
+            initializePathFinding(&memory, navMemBegin, debug, &game, &level, &navMesh, agentRadius);
+        }
+
         // Update
         handleInputAndUpdateGame(&game, &input, dt);
         debugHandleInput(debug, &input);
@@ -343,8 +344,9 @@ int main()
 
         // Render
         rendererBeginFrame(&renderer);
-		renderAll(&renderer, game.viewCamera.projection, view);
-		renderText(&textRenderer);
+        renderAll(&renderer, game.viewCamera.projection, view);
+        logOpenGLErrors();
+        renderText(&textRenderer);
 
         SDL_GL_SwapWindow(window);
 
@@ -364,7 +366,7 @@ int main()
         fps = 1000.f / msElapsed;
         lastCounter = endCounter;
 
-		logOpenGLErrors();
+        logOpenGLErrors();
     }
 
     // Cleanup

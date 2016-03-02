@@ -9,6 +9,6 @@ uniform sampler2D diffuse;
 
 void main()
 {
-	float alpha = texture2D(diffuse, vec2(tex_coords.x, tex_coords.y)).r;
+	float alpha = texture(diffuse, vec2(tex_coords.x, tex_coords.y)).r;
 	fragment = vec4(col, alpha);
 }

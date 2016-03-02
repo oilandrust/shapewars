@@ -53,7 +53,7 @@ void reloadShaders(Renderer* renderer)
     if (renderer->texDiffShader.progId != 0) {
         glDeleteShader(renderer->texDiffShader.progId);
     }
-    createShaderProgram(&renderer->texDiffShader, "shaders\\texture_diffuse.vs", "shaders\\texture_diffuse.fs");
+    createShaderProgram(&renderer->texDiffShader, "shaders/texture_diffuse.vs", "shaders/texture_diffuse.fs");
     logOpenGLErrors();
 
     glBindAttribLocation(renderer->texDiffShader.progId, POS_ATTRIB_LOC, "position");

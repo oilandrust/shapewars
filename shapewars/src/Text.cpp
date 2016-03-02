@@ -163,6 +163,7 @@ void renderText(TextRenderer* tr)
 
     Shader* shader = tr->shader;
     glUseProgram(shader->progId);
+    logOpenGLErrors();
     glUniform2f(shader->resolutionLoc, tr->screenRes.x, tr->screenRes.y);
 
     glActiveTexture(GL_TEXTURE0);

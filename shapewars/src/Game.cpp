@@ -1,10 +1,11 @@
 #include "Game.h"
 
-#include "Input.h"
 #include "Debug.h"
+#include "Input.h"
 #include "Level.h"
 #include "OpenGLClient.h"
 #include "Renderer.h"
+#include "ShapeWars.h"
 
 static void viewCameraLookAt(ViewCamera* camera, const Vec3& position, const Vec3& target, const Vec3& up)
 {
@@ -38,21 +39,20 @@ static Ray unproject(ViewCamera* camera, const Vec2& screenPos)
 
 void setWindowSize(Game* game, uint32 width, uint32 height)
 {
-	game->screenSize = Vec2((real32)width, (real32)height);
+    game->screenSize = Vec2((real32)width, (real32)height);
 
-	CameraPan* camera = &game->camera;
-	ViewCamera* viewCamera = &game->viewCamera;
+    CameraPan* camera = &game->camera;
+    ViewCamera* viewCamera = &game->viewCamera;
 
-	camera->screenWidth = game->screenSize.x;
-	camera->screenHeight = game->screenSize.y;
+    camera->screenWidth = game->screenSize.x;
+    camera->screenHeight = game->screenSize.y;
 
-	real32 aspect = (real32)game->screenSize.x / (real32)game->screenSize.y;
-	real32 fovy = 40.f;
-	memset(viewCamera->projection.data, 0, 16 * sizeof(real32));
-	perspective(viewCamera->projection, fovy, aspect, 1.f, 200.f);
-	viewCamera->focalDistance = 1.f / tanf(.5f * fovy * PI / 180.f);
-	viewCamera->aspect = aspect;
-
+    real32 aspect = (real32)game->screenSize.x / (real32)game->screenSize.y;
+    real32 fovy = 40.f;
+    memset(viewCamera->projection.data, 0, 16 * sizeof(real32));
+    perspective(viewCamera->projection, fovy, aspect, 1.f, 200.f);
+    viewCamera->focalDistance = 1.f / tanf(.5f * fovy * PI / 180.f);
+    viewCamera->aspect = aspect;
 }
 
 void initializeGame(Game* game)
@@ -61,7 +61,7 @@ void initializeGame(Game* game)
     Level* level = game->level;
 
     initializeCameraPan(camera, Vec2(level->width, level->height));
-	
+
     game->bot.entity.position = Vec3(3.f, 3.f, 0.f);
     identity(game->bot.entity.orientation);
 }
@@ -117,19 +117,19 @@ void renderGame(Game* game, Renderer* renderer)
 
     pushPlanePiece(renderer, &renderer->groundShader, identity3, groundSize, groundCenter, Vec3(.70f));
 
-	Vec3 boxColor = Vec3(0.8f);
+    Vec3 boxColor = Vec3(0.8f);
     // Draw Walls
-	if (g_debug.showWalls) {
-		Vec3 boxSize = Vec3(1.f);
-		Vec3* walls = level->walls;
-		uint32 wallCount = level->wallCount;
+    if (g_debug.showWalls) {
+        Vec3 boxSize = Vec3(1.f);
+        Vec3* walls = level->walls;
+        uint32 wallCount = level->wallCount;
 
-		for (uint32 i = 0; i < wallCount; i++) {
-			pushBoxPiece(renderer, &renderer->wallShader, identity3, boxSize, walls[i], boxColor);
-		}
-	}
+        for (uint32 i = 0; i < wallCount; i++) {
+            pushBoxPiece(renderer, &renderer->wallShader, identity3, boxSize, walls[i], boxColor);
+        }
+    }
     // Bot box
-	real32 r = max(0.5, *g_debug.agentRadius);
-	Vec3 botPos = game->bot.entity.position + Vec3(0.f, 0.f, r);
+    real32 r = max(0.5f, *g_debug.agentRadius);
+    Vec3 botPos = game->bot.entity.position + Vec3(0.f, 0.f, r);
     pushBoxPiece(renderer, &renderer->flatDiffShader, game->bot.entity.orientation, Vec3(r), botPos, boxColor);
 }
