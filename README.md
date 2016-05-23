@@ -5,6 +5,8 @@
 This project was started in winter 2015 for fun and learning purposes.
 The aim is to implement a RTS to learn about AI, navigation and engine programming.
 
+<iframe width="420" height="315" src="https://www.youtube.com/embed/yqgOq7DDcAI" frameborder="0" allowfullscreen></iframe>
+
 Synopsis:
 
 For millennia in the universe of shapes, it has been an uncontested fact that all shapes and entities are perfectly cubic. 
